@@ -1,20 +1,24 @@
-'''
-Created on 2018年7月6日
-
-@author: so6370
-'''
 import pyodbc
 
-conn = pyodbc.connect('Driver={SQL Server};Server=172.16.21.8;Database=fallow;Trusted_Connection=yes;')
-cur = conn.cursor()
-# crop_stat = 'select * from cropCode where codeSmall = ?'
-# crop_code = '001'
-crop_stat = 'select top 100 * from cropCode'
-cur.execute(crop_stat)
-# cur.execute(crop_stat, crop_code)
-rows = cur.fetchall()
-cur.close()
-conn.close()
+class DatabaseConnection:
+    FARMER_INSURANCE = "select * from [farmer_insurance].[dbo].[105Peasant] where id = convert(nvarchar(255), ?)"
 
-for row in rows:
-    print(row)
+    pid = None
+    args = 'Driver={SQL Server};Server=172.16.21.8;Database=%s;Trusted_Connection=yes;'
+    
+    def __init__(self, db_name):
+        self.conn = pyodbc.connect(DatabaseConnection.args % db_name)
+        self.cur = self.conn.cursor()
+
+    def get_farmer_insurance(self) -> str:
+        self.cur.execute(DatabaseConnection.FARMER_INSURANCE, DatabaseConnection.pid)
+        if self.cur.fetchone() != None:
+            return "Y"
+        
+    def close_conn(self):
+        self.cur.close()
+        self.conn.close()
+db = DatabaseConnection('farmer_insurance')
+DatabaseConnection.pid = 'A100001651'
+db.get_farmer_insurance()
+db.close_conn()

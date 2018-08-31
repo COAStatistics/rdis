@@ -5,6 +5,12 @@ Created on 2018年6月29日
 '''
 import xlrd
 import re
+import db_conn
+
+MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
+INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
+COA_PATH = '..\\..\\input\\coa.txt'
+SAMPLE_PATH = '..\\..\\input\\simple_sample.txt'
 
 monthly_employee_dict = {}
 insurance_data = {}
@@ -12,11 +18,11 @@ all_samples = []
 households = {}
 
 def load_monthly_employee():
-    sample_list = [line.strip().split('\t') for line in open('..\\..\\input\\106_MonthlyEmployee.txt', 'r', encoding='utf8')]
+    sample_list = [line.strip().split('\t') for line in open(MON_EMP_PATH, 'r', encoding='utf8')]
     global monthly_employee_dict; monthly_employee_dict = {sample[0].strip() : sample for sample in sample_list} #Key is farmer id
 
 def load_insurance():
-    wb = xlrd.open_workbook('..\\..\\input\\insurance.xlsx')
+    wb = xlrd.open_workbook(INSURANCE_PATH)
     sheet = wb.sheet_by_index(0)
     distinct_dict = {}
     
@@ -93,32 +99,33 @@ def add_insurance(k, v, i):
 def data_calssify():
     #有效身分證之樣本
     samples_dict = load_samples()
-    
     #樣本與戶籍對照 dict
     #key: 樣本之身分證字號, value: 樣本之戶號
     comparison_dict = {}
     
-    for coa_data in open('..\\..\\input\\coa_d03_10611.txt', 'r', encoding='utf8'):
+    for coa_data in open(COA_PATH, 'r', encoding='utf8'):
         person_info = coa_data.strip().split(',')
-        
+        pid = person_info[1]
+        hhn = person_info[4]
         #以戶號判斷是否存在, 存在則新增資料, 否則新增一戶
-        if person_info[4] in households:
+        if hhn in households:
             if not person_info[11] == 1 and person_info[12].strip() == '':
-                households.get(person_info[4]).append(person_info)
+                households.get(hhn).append(person_info)
         else:
             person = []
+            # 一戶所有的人
             person.append(person_info)
-            households[person_info[4]] = person
-        
+            households[hhn] = person
         #樣本身份證對應到戶籍資料就存到對照 dict
-        if samples_dict.get(person_info[1]) != None:
-            comparison_dict[person_info[1]] = person_info[4]
+        if pid in samples_dict:
+            comparison_dict[pid] = hhn
             
     build_official_data(comparison_dict)
     
 def load_samples():
     global all_samples
-    all_samples = [l.replace(u'\u3000', '').strip().split('\t') for l in open('..\\..\\input\\sample.txt', 'r', encoding='utf8')]
+    # 將 sample 檔裡所有的資料原封不動存到列表裡
+    all_samples = [l.split('\t') for l in open(SAMPLE_PATH, encoding='utf8')]
     samples_dict = {}
     samples_dict = {l[7].strip():l for l in all_samples if l[7].strip() not in samples_dict and re.match('^[A-Z][12][0-9]{8}$', l[7].strip())}
     return samples_dict
@@ -126,6 +133,6 @@ def load_samples():
 def build_official_data(comparison_dict):
     ...
 
-# load_monthly_employee()
-# load_insurance()
+load_monthly_employee()
+load_insurance()
 data_calssify()
