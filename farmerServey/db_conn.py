@@ -83,6 +83,13 @@ class DatabaseConnection:
     WHERE [FarmerId] = convert(nvarchar(255), ?)
     """
     
+    SCHOLARSHIP =\
+    """
+    SELECT [name],[scholarship]
+    FROM [scholarships].[dbo].[105Y_farmerSurvey]
+    WHERE [id] = convert(nvarchar(255), ?)
+    """
+    
     pid = None
     args = 'Driver={SQL Server};Server=172.16.21.8;Database=%s;Trusted_Connection=yes;'
     
@@ -157,8 +164,8 @@ class DatabaseConnection:
             print(info[0], '\n', info[1])
             
     def get_disaster(self) -> list:
+        d_l = []
         try:
-            d_l = []
             self.cur.execute(DatabaseConnection.DISASTER, DatabaseConnection.pid)
             rows = self.cur.fetchall()                
             if rows != None:
@@ -171,9 +178,9 @@ class DatabaseConnection:
             print(info[0], '\n', info[1])
     
     def get_declaration(self) -> str:
+        l = []
         try:
             self.cur.execute(DatabaseConnection.DECLARATION, DatabaseConnection.pid)
-            l = []
             rows = self.cur.fetchall()
             if rows != None:
                 for i in rows:
@@ -205,8 +212,8 @@ class DatabaseConnection:
             print(info[0], '\n', info[1])
     
     def get_crop_subsidy(self) -> list:
-        try:
-            c_s_l = []
+        c_s_l = []
+        try: 
             self.cur.execute(DatabaseConnection.CROP_SUBSIDY, DatabaseConnection.pid)
             rows = self.cur.fetchall()                
             if rows != None:
@@ -222,7 +229,7 @@ class DatabaseConnection:
             info = sys.exc_info()
             print(info[0], '\n', info[1])
     
-    def get_livestock(self):
+    def get_livestock(self) -> dict:
         result = {}
         try:
             self.cur.execute(DatabaseConnection.LIVESTOCK, DatabaseConnection.pid)
@@ -263,15 +270,28 @@ class DatabaseConnection:
         except Exception:
             info = sys.exc_info()
             print(info[0], '\n', info[1])
-        print(result)
         return result
+    
+    def get_scholarship(self) -> str:
+        s = ''
+        try:
+            self.cur.execute(DatabaseConnection.SCHOLARSHIP, DatabaseConnection.pid)
+            rows = self.cur.fetchall()             
+            if rows != None:
+                for i in rows:
+                    s += i.name + '-' + str(i.scholarship) + ','
+        
+        except Exception:
+            info = sys.exc_info()
+            print(info[0], '\n', info[1])
+        return s[:-2]
     
     def close_conn(self) -> None:
         self.cur.close()
         self.conn.close()
     
 db = DatabaseConnection('farmer_insurance')
-DatabaseConnection.pid = 'D121966856'
+DatabaseConnection.pid = 'A100448332'
 db.get_farmer_insurance()
 db.get_elder_allowance()
 db.get_tenant_transfer_subsidy()
@@ -282,4 +302,5 @@ db.get_disaster()
 db.get_declaration()
 db.get_crop_subsidy()
 db.get_livestock()
+db.get_scholarship()
 db.close_conn()
