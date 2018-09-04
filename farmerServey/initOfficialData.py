@@ -11,6 +11,7 @@ MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
 INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
 COA_PATH = '..\\..\\input\\coa.txt'
 SAMPLE_PATH = '..\\..\\input\\simple_sample.txt'
+THIS_YEAR = 107
 
 monthly_employee_dict = {}
 insurance_data = {}
@@ -42,8 +43,6 @@ def load_insurance():
                 distinct_dict[id_type] = value * 12
                 add_insurance(farm_id, value * 12, 0)
     
-#     for e in distinct_dict:
-#         print(e, ':', distinct_dict[e])
     del distinct_dict
     
     annuity = [45, 48, 35, 36, 37, 38, 55, 56, 57, 59]
@@ -112,10 +111,10 @@ def data_calssify():
             if not person_info[11] == 1 and person_info[12].strip() == '':
                 households.get(hhn).append(person_info)
         else:
-            person = []
             # 一戶所有的人
-            person.append(person_info)
-            households[hhn] = person
+            persons = []
+            persons.append(person_info)
+            households[hhn] = persons
         #樣本身份證對應到戶籍資料就存到對照 dict
         if pid in samples_dict:
             comparison_dict[pid] = hhn
@@ -131,7 +130,31 @@ def load_samples():
     return samples_dict
 
 def build_official_data(comparison_dict):
-    ...
+    db = db_conn.DatabaseConnection('fallow')
+    for sample in all_samples:
+        name, address, birthday, farmer_id, farmer_num = '', '', '', '', ''
+        # json 資料
+        farmer_info = {}
+        farmer_id = sample[7].strip()
+        farmer_num = sample[8].strip()
+        if farmer_id in comparison_dict:
+            household_num = comparison_dict.get(farmer_id)
+            if household_num in households:
+                for person in households.get(household_num):
+                    age = THIS_YEAR - int(person[3][:3])
+                    db.pid = person[1]
+                    # 每年不一定會有 insurance 資料
+                    farmer_info['insurance'] = insurance_data.get(farmer_id)
+                    # json 裡的 household 對應一戶裡的所有個人資料
+                    person_off_data = [None] * 11
+                    person_off_data[0] = person[2].strip()
+                    person_off_data[1] = str(age)
+                    person_off_data[2] = person[10]
+                    if person[1] in insurance_data:
+                        for index, i in enumerate(insurance_data.get(person[1])):
+                            if i > 0:
+                                # ex 1234 -> 1,234
+                                person_off_data[index+5] = format(i, '8,d')
 
 load_monthly_employee()
 load_insurance()
