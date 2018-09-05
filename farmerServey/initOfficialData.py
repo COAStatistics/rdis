@@ -5,7 +5,7 @@ Created on 2018年6月29日
 '''
 import xlrd
 import re
-import db_conn
+from db_conn import DatabaseConnection
 
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
 INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
@@ -96,29 +96,28 @@ def add_insurance(k, v, i):
         insurance_data[k] = value_list
 
 def data_calssify():
-    #有效身分證之樣本
+    # 有效身分證之樣本
     samples_dict = load_samples()
-    #樣本與戶籍對照 dict
-    #key: 樣本之身分證字號, value: 樣本之戶號
+    # 樣本與戶籍對照 dict
+    # key: 樣本之身分證字號, value: 樣本之戶號
     comparison_dict = {}
-    
-    for coa_data in open(COA_PATH, 'r', encoding='utf8'):
-        person_info = coa_data.strip().split(',')
-        pid = person_info[1]
-        hhn = person_info[4]
-        #以戶號判斷是否存在, 存在則新增資料, 否則新增一戶
-        if hhn in households:
-            if not person_info[11] == 1 and person_info[12].strip() == '':
-                households.get(hhn).append(person_info)
-        else:
-            # 一戶所有的人
-            persons = []
-            persons.append(person_info)
-            households[hhn] = persons
-        #樣本身份證對應到戶籍資料就存到對照 dict
-        if pid in samples_dict:
-            comparison_dict[pid] = hhn
-            
+    with open(COA_PATH, 'r', encoding='utf8') as f:
+        for coa_data in f:
+            person_info = coa_data.strip().split(',')
+            pid = person_info[1]
+            hhn = person_info[4]
+            #以戶號判斷是否存在, 存在則新增資料, 否則新增一戶
+            if hhn in households:
+                if person_info[11] != '1' and person_info[12].strip() == '':
+                    households.get(hhn).append(person_info)
+            else:
+                # 一戶所有的人
+                persons = []
+                persons.append(person_info)
+                households[hhn] = persons
+            #樣本身份證對應到戶籍資料就存到對照 dict
+            if pid in samples_dict:
+                comparison_dict[pid] = hhn
     build_official_data(comparison_dict)
     
 def load_samples():
@@ -130,32 +129,81 @@ def load_samples():
     return samples_dict
 
 def build_official_data(comparison_dict):
-    db = db_conn.DatabaseConnection('fallow')
+    db = DatabaseConnection('fallow')
     for sample in all_samples:
         name, address, birthday, farmer_id, farmer_num = '', '', '', '', ''
         # json 資料
-        farmer_info = {}
+        json_data = {}
+        json_household = []
+        json_sb_sbdy = []
+        json_disaster = []
+        json_declaration = ''
+        json_crop_sbdy = []
+        json_livestock = {}
+        # sample 的 id
         farmer_id = sample[7].strip()
         farmer_num = sample[8].strip()
         if farmer_id in comparison_dict:
             household_num = comparison_dict.get(farmer_id)
             if household_num in households:
+                # households.get(household_num) : 每戶 
+                # person : 每戶的每個人
                 for person in households.get(household_num):
+                    pid = person[1]
+                    person_name = person[2].strip()
+                    if pid == sample[7]:
+                        name = person[2].strip()
+                        address = person[3]
+                        birthday = str(int(person[3][:3]))
                     age = THIS_YEAR - int(person[3][:3])
-                    db.pid = person[1]
+                    DatabaseConnection.pid = pid
                     # 每年不一定會有 insurance 資料
-                    farmer_info['insurance'] = insurance_data.get(farmer_id)
+                    json_data['insurance'] = insurance_data.get(farmer_id)
                     # json 裡的 household 對應一戶裡的所有個人資料
-                    person_off_data = [None] * 11
-                    person_off_data[0] = person[2].strip()
-                    person_off_data[1] = str(age)
-                    person_off_data[2] = person[10]
-                    if person[1] in insurance_data:
+                    json_hh_person = [''] * 11
+                    json_hh_person[0] = person_name
+                    json_hh_person[1] = str(age)
+                    # role
+                    json_hh_person[2] = person[10]
+                    # json_hh_person[5-8]
+                    if pid in insurance_data:
                         for index, i in enumerate(insurance_data.get(person[1])):
                             if i > 0:
                                 # ex 1234 -> 1,234
-                                person_off_data[index+5] = format(i, '8,d')
-
+                                json_hh_person[index+5] = format(i, '8,d')
+                    # 根據年齡來過濾是否訪問 db
+                    if age >= 15:
+                        json_hh_person[3] = db.get_farmer_insurance()
+                        if age >= 65:
+                            json_hh_person[4] = db.get_elder_allowance()
+                        # 佃農18-55歲，地主至少18歲
+                        if age >= 18:
+                            json_hh_person[10] = db.get_landlord()
+                            if age <= 55:
+                                json_hh_person[10] += db.get_tenant_farmer()
+                            subsidy = [
+                                    person_name,
+                                    db.get_tenant_transfer_subsidy(),
+                                    db.get_landlord_rent(),
+                                    db.get_landlord_retire()
+                                ]
+                            for i in subsidy[1:]:
+                                if i != '0': json_sb_sbdy.append(subsidy); break
+                            disaster = db.get_disaster()
+                            if len(disaster) != 0:
+                                json_disaster += disaster
+                            declaration = db.get_declaration()
+                            if declaration != 0 and declaration not in json_declaration:
+                                json_declaration += declaration + ','
+                            crop_sbdy = db.get_crop_subsidy()
+                            if len(crop_sbdy) != 0:
+                                json_crop_sbdy += crop_sbdy
+                            livestock = db.get_livestock()
+                            if len(livestock) != 0:
+                                json_livestock.update(livestock)
+                        if age >= 30:
+                            json_hh_person[9] = db.get_scholarship()
+                    json_household.append(json_hh_person)
 load_monthly_employee()
 load_insurance()
 data_calssify()

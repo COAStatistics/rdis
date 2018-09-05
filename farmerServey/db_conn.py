@@ -57,9 +57,9 @@ class DatabaseConnection:
     
     DISASTER =\
     """
-    SELECT evt_name, applyCrop, applyArea AS apr_area, subsidyAmount AS sbdy_amt
-    FROM [disaster].[dbo].[106acdList]
-    WHERE [ownerID] = convert(nvarchar(255), ?)
+    SELECT [evt_name], [apr_crop], [apr_area], [sbdy_amt]
+    FROM [disaster].[dbo].[105acdList_farmerSurvey]
+    WHERE [pid] = convert(nvarchar(255), ?)
     """
     
     DECLARATION =\
@@ -102,6 +102,8 @@ class DatabaseConnection:
             self.cur.execute(DatabaseConnection.FARMER_INSURANCE, DatabaseConnection.pid)
             if self.cur.fetchone() != None:
                 return "Y"
+            else:
+                return ''
         except Exception:
             info = sys.exc_info()
             print(info[0], '\n', info[1])
@@ -120,6 +122,8 @@ class DatabaseConnection:
             self.cur.execute(DatabaseConnection.LANDLORD, DatabaseConnection.pid)
             if self.cur.fetchone() != None:
                 return "小"
+            else:
+                return ''
         except Exception:
             info = sys.exc_info()
             print(info[0], '\n', info[1])
@@ -129,6 +133,8 @@ class DatabaseConnection:
             self.cur.execute(DatabaseConnection.TENANT, DatabaseConnection.pid)
             if self.cur.fetchone() != None:
                 return "大"
+            else:
+                return ''
         except Exception:
             info = sys.exc_info()
             print(info[0], '\n', info[1])
@@ -139,6 +145,8 @@ class DatabaseConnection:
             row = self.cur.fetchone()
             if row != None:
                 return str(int(row.money))
+            else:
+                return '0'
         except Exception:
             info = sys.exc_info()
             print(info[0], '\n', info[1])
@@ -149,6 +157,8 @@ class DatabaseConnection:
             row = self.cur.fetchone()
             if row != None:
                 return str(int(row.money))
+            else:
+                return '0'
         except Exception:
             info = sys.exc_info()
             print(info[0], '\n', info[1])
@@ -159,6 +169,8 @@ class DatabaseConnection:
             row = self.cur.fetchone()
             if row != None:
                 return str(int(row.money))
+            else:
+                return '0'
         except Exception:
             info = sys.exc_info()
             print(info[0], '\n', info[1])
@@ -167,15 +179,16 @@ class DatabaseConnection:
         d_l = []
         try:
             self.cur.execute(DatabaseConnection.DISASTER, DatabaseConnection.pid)
-            rows = self.cur.fetchall()                
+            rows = self.cur.fetchall()
             if rows != None:
                 for i in rows:
-                    l = [i.evt_name, i.applyCrop, i.apr_area, int(i.sbdy_amt)]
+                    l = [i.evt_name, i.apr_crop, i.apr_area, int(i.sbdy_amt)]
                     d_l.append(l)
-            return d_l
         except Exception:
             info = sys.exc_info()
             print(info[0], '\n', info[1])
+        else:
+            return d_l
     
     def get_declaration(self) -> str:
         l = []
@@ -289,18 +302,19 @@ class DatabaseConnection:
     def close_conn(self) -> None:
         self.cur.close()
         self.conn.close()
-    
-db = DatabaseConnection('farmer_insurance')
-DatabaseConnection.pid = 'A100448332'
-db.get_farmer_insurance()
-db.get_elder_allowance()
-db.get_tenant_transfer_subsidy()
-db.get_landlord_rent()
-db.get_landlord()
-db.get_landlord_retire()
-db.get_disaster()
-db.get_declaration()
-db.get_crop_subsidy()
-db.get_livestock()
-db.get_scholarship()
-db.close_conn()
+
+if __name__ == '__main__':
+    db = DatabaseConnection('farmer_insurance')
+    DatabaseConnection.pid = 'P101953950'
+    db.get_farmer_insurance()
+    db.get_elder_allowance()
+    db.get_tenant_transfer_subsidy()
+    db.get_landlord_rent()
+    db.get_landlord()
+    db.get_landlord_retire()
+    db.get_disaster()
+    db.get_declaration()
+    db.get_crop_subsidy()
+    db.get_livestock()
+    db.get_scholarship()
+    db.close_conn()
