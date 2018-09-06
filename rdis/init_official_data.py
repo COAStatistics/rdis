@@ -6,7 +6,9 @@ Created on 2018年6月29日
 import json
 import xlrd
 import re
+import time
 from db_conn import DatabaseConnection
+from log import log
 
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
 # INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
@@ -23,11 +25,11 @@ all_samples = []
 households = {}
 official_data = {}
 
-def load_monthly_employee():
+def load_monthly_employee() -> None:
     sample_list = [line.strip().split('\t') for line in open(MON_EMP_PATH, 'r', encoding='utf8')]
     global monthly_employee_dict; monthly_employee_dict = {sample[0].strip() : sample[1:] for sample in sample_list} #Key is farmer id
 
-def load_insurance():
+def load_insurance() -> None:
     wb = xlrd.open_workbook(INSURANCE_PATH)
     sheet = wb.sheet_by_index(0)
     distinct_dict = {}
@@ -91,7 +93,7 @@ def load_insurance():
         value = int(row[2])
         add_insurance(farm_id, value, 3)
 
-def add_insurance(k, v, i):
+def add_insurance(k, v, i) -> None:
     if k in insurance_data:
         insurance_data.get(k)[i] += v
     
@@ -100,7 +102,7 @@ def add_insurance(k, v, i):
         value_list[i] = v
         insurance_data[k] = value_list
 
-def data_calssify():
+def data_calssify() -> None:
     # 有效身分證之樣本
     samples_dict = load_samples()
     # 樣本與戶籍對照 dict
@@ -125,7 +127,7 @@ def data_calssify():
                 comparison_dict[pid] = hhn
     build_official_data(comparison_dict)
     
-def load_samples():
+def load_samples() -> dict:
     global all_samples
     # 將 sample 檔裡所有的資料原封不動存到列表裡
     all_samples = [l.split('\t') for l in open(SAMPLE_PATH, encoding='utf8')]
@@ -133,8 +135,8 @@ def load_samples():
     samples_dict = {l[7].strip():l for l in all_samples if l[7].strip() not in samples_dict and re.match('^[A-Z][12][0-9]{8}$', l[7].strip())}
     return samples_dict
 
-def build_official_data(comparison_dict):
-    db = DatabaseConnection('fallow')
+def build_official_data(comparison_dict) -> None:
+    db = DatabaseConnection()
     error_sample = []
     for sample in all_samples:
         name, address, birthday, farmer_id, farmer_num = '', '', '', '', ''
@@ -167,7 +169,8 @@ def build_official_data(comparison_dict):
                     age = THIS_YEAR - int(person[3][:3])
                     DatabaseConnection.pid = pid
                     # 每年不一定會有 insurance 資料
-                    json_data['insurance'] = insurance_data.get(farmer_id)
+                    if farmer_id in insurance_data:
+                        json_data['insurance'] = insurance_data.get(farmer_id)
                     # json 裡的 household 對應一戶裡的所有個人資料
                     json_hh_person = [''] * 11
                     json_hh_person[0] = person_name
@@ -198,8 +201,8 @@ def build_official_data(comparison_dict):
                                     db.get_landlord_rent(),
                                     db.get_landlord_retire()
                                 ]
-                            for i in subsidy[1:]:
-                                if i != '0': json_sb_sbdy.append(subsidy); break
+                            if any((i != '0') for i in subsidy[1:]):
+                                json_sb_sbdy.append(subsidy)
                             disaster = db.get_disaster()
                             if len(disaster) != 0:
                                 json_disaster += disaster
@@ -224,6 +227,8 @@ def build_official_data(comparison_dict):
             json_hh_person[0] = name
             json_household.append(json_hh_person)
             error_sample.append(sample)
+            log.warning('error sample:')
+            log.warning(sample)
         # create json data
         json_data['name'] = name
         json_data['address'] = address
@@ -239,13 +244,21 @@ def build_official_data(comparison_dict):
         json_data['disaster'] = json_disaster
         json_data['livestock'] = json_livestock
         json_data['sbSbdy'] = json_sb_sbdy
+        log.info('json data:')
+        log.info(json_data)
         official_data[farmer_num] = json_data
     output_josn(official_data)
+    
 
-def output_josn(data):
+def output_josn(data) -> None:
     with open(OUTPUT_PATH, 'w', encoding='utf8') as f:
         f.write(json.dumps(data,  ensure_ascii=False))
-    print('complete')
-load_monthly_employee()
-load_insurance()
-data_calssify()
+    log.info('compelete')
+
+if __name__ == '__main__':
+    start_time = time.time()
+    load_monthly_employee()
+    load_insurance()
+    data_calssify()
+    log.info('time : ' + str(round(time.time() - start_time, 2)) + ' s')
+    

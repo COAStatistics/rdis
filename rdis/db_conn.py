@@ -93,7 +93,7 @@ class DatabaseConnection:
     pid = None
     args = 'Driver={SQL Server};Server=172.16.21.8;Database=%s;Trusted_Connection=yes;'
     
-    def __init__(self, db_name):
+    def __init__(self, db_name='fallow'):
         self.conn = pyodbc.connect(DatabaseConnection.args % db_name)
         self.cur = self.conn.cursor()
 
