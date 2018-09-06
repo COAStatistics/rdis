@@ -3,24 +3,29 @@ Created on 2018年6月29日
 
 @author: so6370
 '''
+import json
 import xlrd
 import re
 from db_conn import DatabaseConnection
 
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
-INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
-COA_PATH = '..\\..\\input\\coa.txt'
+# INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
+INSURANCE_PATH = '..\\..\\input\\insurance.xlsx'
+# COA_PATH = '..\\..\\input\\coa.txt'
+COA_PATH = '..\\..\\input\\coa_d03_10611.txt'
 SAMPLE_PATH = '..\\..\\input\\simple_sample.txt'
+OUTPUT_PATH = '..\\..\\output\\json\\公務資料.json'
 THIS_YEAR = 107
 
 monthly_employee_dict = {}
 insurance_data = {}
 all_samples = []
 households = {}
+official_data = {}
 
 def load_monthly_employee():
     sample_list = [line.strip().split('\t') for line in open(MON_EMP_PATH, 'r', encoding='utf8')]
-    global monthly_employee_dict; monthly_employee_dict = {sample[0].strip() : sample for sample in sample_list} #Key is farmer id
+    global monthly_employee_dict; monthly_employee_dict = {sample[0].strip() : sample[1:] for sample in sample_list} #Key is farmer id
 
 def load_insurance():
     wb = xlrd.open_workbook(INSURANCE_PATH)
@@ -130,6 +135,7 @@ def load_samples():
 
 def build_official_data(comparison_dict):
     db = DatabaseConnection('fallow')
+    error_sample = []
     for sample in all_samples:
         name, address, birthday, farmer_id, farmer_num = '', '', '', '', ''
         # json 資料
@@ -151,10 +157,13 @@ def build_official_data(comparison_dict):
                 for person in households.get(household_num):
                     pid = person[1]
                     person_name = person[2].strip()
+                    # json data 主要以 sample 的人當資料，所以要判斷戶內人是否為 sample
                     if pid == sample[7]:
                         name = person[2].strip()
-                        address = person[3]
+                        address = sample[3]
+                        # 民國年
                         birthday = str(int(person[3][:3]))
+                    # 轉成實際年齡
                     age = THIS_YEAR - int(person[3][:3])
                     DatabaseConnection.pid = pid
                     # 每年不一定會有 insurance 資料
@@ -162,7 +171,7 @@ def build_official_data(comparison_dict):
                     # json 裡的 household 對應一戶裡的所有個人資料
                     json_hh_person = [''] * 11
                     json_hh_person[0] = person_name
-                    json_hh_person[1] = str(age)
+                    json_hh_person[1] = str(int(person[3][:3]))
                     # role
                     json_hh_person[2] = person[10]
                     # json_hh_person[5-8]
@@ -172,8 +181,10 @@ def build_official_data(comparison_dict):
                                 # ex 1234 -> 1,234
                                 json_hh_person[index+5] = format(i, '8,d')
                     # 根據年齡來過濾是否訪問 db
+                    # 農保至少15歲
                     if age >= 15:
                         json_hh_person[3] = db.get_farmer_insurance()
+                        # 老農津貼至少65歲
                         if age >= 65:
                             json_hh_person[4] = db.get_elder_allowance()
                         # 佃農18-55歲，地主至少18歲
@@ -201,9 +212,40 @@ def build_official_data(comparison_dict):
                             livestock = db.get_livestock()
                             if len(livestock) != 0:
                                 json_livestock.update(livestock)
+                        # 獎學金申請人資格，申請對象至少15歲，故假設申請人30歲
                         if age >= 30:
                             json_hh_person[9] = db.get_scholarship()
                     json_household.append(json_hh_person)
+        else:
+            DatabaseConnection.pid = farmer_id
+            name = sample[1]
+            address = sample[3]
+            json_hh_person = [''] * 11
+            json_hh_person[0] = name
+            json_household.append(json_hh_person)
+            error_sample.append(sample)
+        # create json data
+        json_data['name'] = name
+        json_data['address'] = address
+        json_data['birthday'] = birthday
+        json_data['farmerId'] = farmer_id
+        json_data['telephone'] = sample[2]
+        json_data['layer'] = sample[0]
+        json_data['serial'] = farmer_num[-5:]
+        json_data['household'] = json_household
+        json_data['monEmp'] = monthly_employee_dict.get(farmer_num)
+        json_data['declaration'] = json_declaration[:-2]
+        json_data['cropSbdy'] = json_crop_sbdy
+        json_data['disaster'] = json_disaster
+        json_data['livestock'] = json_livestock
+        json_data['sbSbdy'] = json_sb_sbdy
+        official_data[farmer_num] = json_data
+    output_josn(official_data)
+
+def output_josn(data):
+    with open(OUTPUT_PATH, 'w', encoding='utf8') as f:
+        f.write(json.dumps(data,  ensure_ascii=False))
+    print('complete')
 load_monthly_employee()
 load_insurance()
 data_calssify()

@@ -112,7 +112,9 @@ class DatabaseConnection:
         try:
             self.cur.execute(DatabaseConnection.ELDER_ALLOWANCE, DatabaseConnection.pid)
             if self.cur.fetchone() != None:
-                return "Y"
+                return 'Y'
+            else:
+                return ''
         except Exception:
             info = sys.exc_info()
             print(info[0], '\n', info[1])
@@ -121,7 +123,7 @@ class DatabaseConnection:
         try:
             self.cur.execute(DatabaseConnection.LANDLORD, DatabaseConnection.pid)
             if self.cur.fetchone() != None:
-                return "小"
+                return 'Y'
             else:
                 return ''
         except Exception:
@@ -132,7 +134,7 @@ class DatabaseConnection:
         try:
             self.cur.execute(DatabaseConnection.TENANT, DatabaseConnection.pid)
             if self.cur.fetchone() != None:
-                return "大"
+                return '大'
             else:
                 return ''
         except Exception:
@@ -182,7 +184,7 @@ class DatabaseConnection:
             rows = self.cur.fetchall()
             if rows != None:
                 for i in rows:
-                    l = [i.evt_name, i.apr_crop, i.apr_area, int(i.sbdy_amt)]
+                    l = [i.evt_name, i.apr_crop, str(round(i.apr_area, 4)), str(int(i.sbdy_amt))]
                     d_l.append(l)
         except Exception:
             info = sys.exc_info()
@@ -297,7 +299,7 @@ class DatabaseConnection:
         except Exception:
             info = sys.exc_info()
             print(info[0], '\n', info[1])
-        return s[:-2]
+        return s[:-1]
     
     def close_conn(self) -> None:
         self.cur.close()
