@@ -102,3 +102,9 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# celipse
+.settings/
+.project
+.pydevproject
+rdis/__pycache__/
