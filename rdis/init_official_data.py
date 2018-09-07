@@ -116,7 +116,9 @@ def data_calssify() -> None:
             #以戶號判斷是否存在, 存在則新增資料, 否則新增一戶
             if hhn in households:
                 if person_info[11] != '1' and person_info[12].strip() == '':
-                    households.get(hhn).append(person_info)
+                    # 避免人重複
+                    if all((i[2].find(person_info[2]) == -1) for i in households.get(hhn)):
+                        households.get(hhn).append(person_info)
             else:
                 # 一戶所有的人
                 persons = []
