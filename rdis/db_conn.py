@@ -123,7 +123,7 @@ class DatabaseConnection:
         try:
             self.cur.execute(DatabaseConnection.LANDLORD, DatabaseConnection.pid)
             if self.cur.fetchone() != None:
-                return 'Y'
+                return '小'
             else:
                 return ''
         except Exception:
