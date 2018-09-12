@@ -4,12 +4,22 @@ import openpyxl
 import os
 from log import log
 from openpyxl.utils import get_column_letter
-from openpyxl.styles import Alignment
+from openpyxl.styles import Alignment, Border, Side
 
-SAMPLE_PATH = '..\\..\\input\\simple_sample.txt'
-JSON_PATH = '..\\..\\output\\json\\公務資料.json'
+# SAMPLE_PATH = '..\\..\\input\\simple_sample.txt'
+SAMPLE_PATH = '..\\..\\input\\easy.txt'
+# JSON_PATH = '..\\..\\output\\json\\公務資料.json'
+JSON_PATH = '..\\..\\output\\json\\json.json'
 FOLDER_PATH = '..\\..\\output\\'+datetime.datetime.now().strftime('%Y%m%d_%H%M%S')+''
 TYPE_FLAG = '主選'
+
+ALIGNMENT = Alignment(horizontal='center', vertical='bottom')
+BORDER = Border(
+        top=Side(style='medium'),
+        bottom=Side(style='medium'),
+        left=Side(style='medium'),
+        right=Side(style='medium')
+    )
 
 if not os.path.isdir(FOLDER_PATH):
     os.mkdir(FOLDER_PATH)
@@ -36,21 +46,21 @@ def read_sample() -> None:
 
 
 def output_excel(type_flag=TYPE_FLAG) -> None:
-    for county, v in sample_dict.items():
+    for county, samples in sample_dict.items():
         log.info('county : ' + county)
         if type_flag == '主選':
-            v.sort(key=lambda x:x[5])
+            samples.sort(key=lambda x:x[5])
         else:
-            v.sort(key=lambda x:x[8][-5:])
+            samples.sort(key=lambda x:x[8][-5:])
         wb = openpyxl.Workbook()
         col_index = 1
         row_index = 1
         county = county
-        town = v[0][5]
+        town = samples[0][5]
         log.info('town : ' + town)
         sheet = wb.active
         sheet.title = town if type_flag == '主選' else 'sheet'+str(row_index+1)
-        for person in v:
+        for person in samples:
             log.info('person name : ' + person[1])
             scholarship = ''
             sb = ''
@@ -234,6 +244,42 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
             sheet.cell(column=1, row=row_index).value = ' ================================================================ '
         row_index += 1
         wb.save(FOLDER_PATH + '\\' + county + '.xlsx')
+        output_sample_roster(county, samples)
+        
+def output_sample_roster(c, s, type_flag=TYPE_FLAG):
+    county = c
+    town = s[0][5]
+    wb = openpyxl.Workbook()
+    sheet = wb.active
+    sheet.title = town
+    row_index = 4
+    col_index = 1
+    for sample in s:
+        if town != sample[5]:
+            town = sample[5]
+            sheet = wb.create_sheet(town)
+            row_index = 4
+        if row_index == 4:
+            width = list(map(lambda x: x*1.13,[5.29, 5.29, 13.29, 9.29, 9.29, 10.29, 50.29, 4.29, 5.29, 20.29, 5.29]))
+            for i in range(1, len(width)+1):
+                sheet.column_dimensions[get_column_letter(i)].width = width[i-1]
+            titles = ['106年主力農家所得調查樣本名冊─'+TYPE_FLAG, '本頁已完成調查戶數：_____', '失敗戶請填寫失敗訪視紀錄表', '']
+            for index, title in enumerate(titles, start=1):
+                sheet.merge_cells(start_row=index, start_column=col_index, end_row=index, end_column=11)
+                sheet.cell(index, col_index).value = title
+                sheet.cell(index, col_index).alignment = ALIGNMENT
+                if index == 3:
+                    sheet.cell(index, col_index).alignment = Alignment(horizontal='right')
+                if index == 4:
+                    for i in range(1, 12):
+                        sheet.cell(index, i).border = BORDER
+        row_index += 1
+        titles = ['序號', '樣本套號 ', '農戶編號', '連結編號 ', '戶長姓名', '電話 ', '地址 ', '層別 ', '經營種類 ', '可耕作地面積', '成功打勾']
+        for index, title in enumerate(titles, start=1):
+            sheet.cell(row_index, index).alignment = Alignment(horizontal='center', vertical='bottom', wrap_text=True)
+            sheet.cell(row_index, index).value = title
+            sheet.cell(row_index, index).border = BORDER
+    wb.save(FOLDER_PATH + '\\' + county + 'sample_roster.xlsx')
 read_official_data()
 read_sample()
 output_excel()
