@@ -9,7 +9,7 @@ from log import log
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
 INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
 # INSURANCE_PATH = '..\\..\\input\\insurance.xlsx'
-COA_PATH = '..\\..\\input\\coa.txt'
+COA_PATH = '..\\..\\input\\107.txt'
 # COA_PATH = '..\\..\\input\\coa_d03_10611.txt'
 SAMPLE_PATH = '..\\..\\input\\easy.txt'
 OUTPUT_PATH = '..\\..\\output\\json\\公務資料.json'
@@ -29,8 +29,21 @@ SAMPLE_ATTR = [
         'area',
         'sample_num',
     ]
+PERSON_ATTR = [
+        'addr_code',
+        'id',
+        'name',
+        'birthday',
+        'household_num',
+        'h_name',
+        'addr',
+        'role',
+        'h_type',
+        'dif',
+    ]
 # use namedtuple increase code readable
 Sample = namedtuple('Sample', SAMPLE_ATTR)
+Person = namedtuple('Person', PERSON_ATTR)
 
 monthly_employee_dict = {}
 insurance_data = {}
@@ -124,19 +137,19 @@ def data_calssify() -> None:
     comparison_dict = {}
     with open(COA_PATH, 'r', encoding='utf8') as f:
         for coa_data in f:
-            person_info = coa_data.strip().split(',')
-            pid = person_info[1]
-            hhn = person_info[4]
+            person = Person._make(coa_data.strip().split(','))
+            pid = person.id
+            hhn = person.household_num
             #以戶號判斷是否存在, 存在則新增資料, 否則新增一戶
             if hhn in households:
-                if person_info[11] != '1' and person_info[12].strip() == '':
+#                 if person_info[11] != '1' and person_info[12].strip() == '':
                     # 避免人重複
-                    if all((i[2].find(person_info[2]) == -1) for i in households.get(hhn)):
-                        households.get(hhn).append(person_info)
+                    if all((i.id.find(person.id) == -1) for i in households.get(hhn)):
+                        households.get(hhn).append(person)
             else:
                 # 一戶所有的人
                 persons = []
-                persons.append(person_info)
+                persons.append(person)
                 households[hhn] = persons
             #樣本身份證對應到戶籍資料就存到對照 dict
             if pid in samples_dict:
