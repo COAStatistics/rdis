@@ -1,26 +1,40 @@
-'''
-Created on 2018年6月29日
-
-@author: so6370
-'''
 import json
 import xlrd
 import re
 import time
+from collections import namedtuple
 from db_conn import DatabaseConnection
 from log import log
 
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
-# INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
-INSURANCE_PATH = '..\\..\\input\\insurance.xlsx'
-# COA_PATH = '..\\..\\input\\coa.txt'
-COA_PATH = '..\\..\\input\\coa_d03_10611.txt'
-SAMPLE_PATH = '..\\..\\input\\simple_sample.txt'
+INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
+# INSURANCE_PATH = '..\\..\\input\\insurance.xlsx'
+COA_PATH = '..\\..\\input\\coa.txt'
+# COA_PATH = '..\\..\\input\\coa_d03_10611.txt'
+SAMPLE_PATH = '..\\..\\input\\easy.txt'
 OUTPUT_PATH = '..\\..\\output\\json\\公務資料.json'
 THIS_YEAR = 107
+# defined namedtuple attribute
+SAMPLE_ATTR = [
+        'layer',
+        'name',
+        'tel',
+        'addr',
+        'county',
+        'town',
+        'link_num',
+        'id',
+        'num',
+        'main_type',
+        'area',
+        'sample_num',
+    ]
+# use namedtuple increase code readable
+Sample = namedtuple('Sample', SAMPLE_ATTR)
 
 monthly_employee_dict = {}
 insurance_data = {}
+# every element is a Sample obj
 all_samples = []
 households = {}
 official_data = {}
@@ -132,9 +146,9 @@ def data_calssify() -> None:
 def load_samples() -> dict:
     global all_samples
     # 將 sample 檔裡所有的資料原封不動存到列表裡
-    all_samples = [l.split('\t') for l in open(SAMPLE_PATH, encoding='utf8')]
+    all_samples = [Sample._make(l.split('\t')) for l in open(SAMPLE_PATH, encoding='utf8')]
     samples_dict = {}
-    samples_dict = {l[7].strip():l for l in all_samples if l[7].strip() not in samples_dict and re.match('^[A-Z][12][0-9]{8}$', l[7].strip())}
+    samples_dict = {s.id:s for s in all_samples if s.id not in samples_dict and re.match('^[A-Z][12][0-9]{8}$', s.id)}
     return samples_dict
 
 def build_official_data(comparison_dict) -> None:
@@ -150,9 +164,8 @@ def build_official_data(comparison_dict) -> None:
         json_declaration = ''
         json_crop_sbdy = []
         json_livestock = {}
-        # sample 的 id
-        farmer_id = sample[7].strip()
-        farmer_num = sample[8].strip()
+        farmer_id = sample.id
+        farmer_num = sample.num
         if farmer_id in comparison_dict:
             household_num = comparison_dict.get(farmer_id)
             if household_num in households:
@@ -162,9 +175,9 @@ def build_official_data(comparison_dict) -> None:
                     pid = person[1]
                     person_name = person[2].strip()
                     # json data 主要以 sample 的人當資料，所以要判斷戶內人是否為 sample
-                    if pid == sample[7]:
+                    if pid == sample.id:
                         name = person[2].strip()
-                        address = sample[3]
+                        address = sample.addr
                         # 民國年
                         birthday = str(int(person[3][:3]))
                     # 轉成實際年齡
@@ -223,8 +236,8 @@ def build_official_data(comparison_dict) -> None:
                     json_household.append(json_hh_person)
         else:
             DatabaseConnection.pid = farmer_id
-            name = sample[1]
-            address = sample[3]
+            name = sample.name
+            address = sample.addr
             json_hh_person = [''] * 11
             json_hh_person[0] = name
             json_household.append(json_hh_person)
@@ -236,8 +249,8 @@ def build_official_data(comparison_dict) -> None:
         json_data['address'] = address
         json_data['birthday'] = birthday
         json_data['farmerId'] = farmer_id
-        json_data['telephone'] = sample[2]
-        json_data['layer'] = sample[0]
+        json_data['telephone'] = sample.tel
+        json_data['layer'] = sample.layer
         json_data['serial'] = farmer_num[-5:]
         json_data['household'] = json_household
         json_data['monEmp'] = monthly_employee_dict.get(farmer_num)
@@ -249,7 +262,7 @@ def build_official_data(comparison_dict) -> None:
         log.info('json data:')
         log.info(json_data)
         official_data[farmer_num] = json_data
-    output_josn(official_data)
+#     output_josn(official_data)
     
 
 def output_josn(data) -> None:
@@ -257,10 +270,10 @@ def output_josn(data) -> None:
         f.write(json.dumps(data,  ensure_ascii=False))
     log.info('compelete')
 
-if __name__ == '__main__':
-    start_time = time.time()
-    load_monthly_employee()
-    load_insurance()
-    data_calssify()
-    log.info('time : ' + str(round(time.time() - start_time, 2)) + ' s')
+# if __name__ == '__main__':
+start_time = time.time()
+load_monthly_employee()
+load_insurance()
+data_calssify()
+log.info('time : ' + str(round(time.time() - start_time, 2)) + ' s')
     
