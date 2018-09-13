@@ -1,26 +1,53 @@
-'''
-Created on 2018年6月29日
-
-@author: so6370
-'''
 import json
 import xlrd
 import re
 import time
+from collections import namedtuple
 from db_conn import DatabaseConnection
 from log import log
 
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
-# INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
-INSURANCE_PATH = '..\\..\\input\\insurance.xlsx'
-# COA_PATH = '..\\..\\input\\coa.txt'
-COA_PATH = '..\\..\\input\\coa_d03_10611.txt'
-SAMPLE_PATH = '..\\..\\input\\simple_sample.txt'
+INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
+# INSURANCE_PATH = '..\\..\\input\\insurance.xlsx'
+COA_PATH = '..\\..\\input\\107.txt'
+# COA_PATH = '..\\..\\input\\coa_d03_10611.txt'
+SAMPLE_PATH = '..\\..\\input\\easy.txt'
 OUTPUT_PATH = '..\\..\\output\\json\\公務資料.json'
 THIS_YEAR = 107
+# defined namedtuple attribute
+SAMPLE_ATTR = [
+        'layer',
+        'name',
+        'tel',
+        'addr',
+        'county',
+        'town',
+        'link_num',
+        'id',
+        'num',
+        'main_type',
+        'area',
+        'sample_num',
+    ]
+PERSON_ATTR = [
+        'addr_code',
+        'id',
+        'name',
+        'birthday',
+        'household_num',
+        'h_name',
+        'addr',
+        'role',
+        'h_type',
+        'dif',
+    ]
+# use namedtuple promote the readable and flexibility of code
+Sample = namedtuple('Sample', SAMPLE_ATTR)
+Person = namedtuple('Person', PERSON_ATTR)
 
 monthly_employee_dict = {}
 insurance_data = {}
+# every element is a Sample obj
 all_samples = []
 households = {}
 official_data = {}
@@ -110,19 +137,20 @@ def data_calssify() -> None:
     comparison_dict = {}
     with open(COA_PATH, 'r', encoding='utf8') as f:
         for coa_data in f:
-            person_info = coa_data.strip().split(',')
-            pid = person_info[1]
-            hhn = person_info[4]
+            # create Person object
+            person = Person._make(coa_data.strip().split(','))
+            pid = person.id
+            hhn = person.household_num
             #以戶號判斷是否存在, 存在則新增資料, 否則新增一戶
             if hhn in households:
-                if person_info[11] != '1' and person_info[12].strip() == '':
+#                 if person_info[11] != '1' and person_info[12].strip() == '':
                     # 避免人重複
-                    if all((i[2].find(person_info[2]) == -1) for i in households.get(hhn)):
-                        households.get(hhn).append(person_info)
+                    if all((i.id.find(person.id) == -1) for i in households.get(hhn)):
+                        households.get(hhn).append(person)
             else:
                 # 一戶所有的人
                 persons = []
-                persons.append(person_info)
+                persons.append(person)
                 households[hhn] = persons
             #樣本身份證對應到戶籍資料就存到對照 dict
             if pid in samples_dict:
@@ -132,14 +160,15 @@ def data_calssify() -> None:
 def load_samples() -> dict:
     global all_samples
     # 將 sample 檔裡所有的資料原封不動存到列表裡
-    all_samples = [l.split('\t') for l in open(SAMPLE_PATH, encoding='utf8')]
+    all_samples = [Sample._make(l.split('\t')) for l in open(SAMPLE_PATH, encoding='utf8')]
     samples_dict = {}
-    samples_dict = {l[7].strip():l for l in all_samples if l[7].strip() not in samples_dict and re.match('^[A-Z][12][0-9]{8}$', l[7].strip())}
+    samples_dict = {s.id:s for s in all_samples if s.id not in samples_dict and re.match('^[A-Z][12][0-9]{8}$', s.id)}
     return samples_dict
 
 def build_official_data(comparison_dict) -> None:
     db = DatabaseConnection()
     error_sample = []
+    # every element is a Sample object
     for sample in all_samples:
         name, address, birthday, farmer_id, farmer_num = '', '', '', '', ''
         # json 資料
@@ -150,25 +179,25 @@ def build_official_data(comparison_dict) -> None:
         json_declaration = ''
         json_crop_sbdy = []
         json_livestock = {}
-        # sample 的 id
-        farmer_id = sample[7].strip()
-        farmer_num = sample[8].strip()
+        farmer_id = sample.id
+        farmer_num = sample.num
         if farmer_id in comparison_dict:
             household_num = comparison_dict.get(farmer_id)
             if household_num in households:
                 # households.get(household_num) : 每戶 
                 # person : 每戶的每個人
+                # person is a Person object
                 for person in households.get(household_num):
-                    pid = person[1]
-                    person_name = person[2].strip()
+                    pid = person.id
+                    person_name = person.name
                     # json data 主要以 sample 的人當資料，所以要判斷戶內人是否為 sample
-                    if pid == sample[7]:
-                        name = person[2].strip()
-                        address = sample[3]
+                    if pid == sample.id:
+                        name = person.name
+                        address = sample.addr
                         # 民國年
-                        birthday = str(int(person[3][:3]))
+                        birthday = str(int(person.birthday[:3]))
                     # 轉成實際年齡
-                    age = THIS_YEAR - int(person[3][:3])
+                    age = THIS_YEAR - int(person.birthday[:3])
                     DatabaseConnection.pid = pid
                     # 每年不一定會有 insurance 資料
                     if farmer_id in insurance_data:
@@ -176,12 +205,12 @@ def build_official_data(comparison_dict) -> None:
                     # json 裡的 household 對應一戶裡的所有個人資料
                     json_hh_person = [''] * 11
                     json_hh_person[0] = person_name
-                    json_hh_person[1] = str(int(person[3][:3]))
+                    json_hh_person[1] = str(int(person.birthday[:3]))
                     # role
-                    json_hh_person[2] = person[10]
+                    json_hh_person[2] = person.role
                     # json_hh_person[5-8]
                     if pid in insurance_data:
-                        for index, i in enumerate(insurance_data.get(person[1])):
+                        for index, i in enumerate(insurance_data.get(person.id)):
                             if i > 0:
                                 # ex 1234 -> 1,234
                                 json_hh_person[index+5] = format(i, '8,d')
@@ -223,8 +252,8 @@ def build_official_data(comparison_dict) -> None:
                     json_household.append(json_hh_person)
         else:
             DatabaseConnection.pid = farmer_id
-            name = sample[1]
-            address = sample[3]
+            name = sample.name
+            address = sample.addr
             json_hh_person = [''] * 11
             json_hh_person[0] = name
             json_household.append(json_hh_person)
@@ -236,8 +265,8 @@ def build_official_data(comparison_dict) -> None:
         json_data['address'] = address
         json_data['birthday'] = birthday
         json_data['farmerId'] = farmer_id
-        json_data['telephone'] = sample[2]
-        json_data['layer'] = sample[0]
+        json_data['telephone'] = sample.tel
+        json_data['layer'] = sample.layer
         json_data['serial'] = farmer_num[-5:]
         json_data['household'] = json_household
         json_data['monEmp'] = monthly_employee_dict.get(farmer_num)
@@ -249,7 +278,7 @@ def build_official_data(comparison_dict) -> None:
         log.info('json data:')
         log.info(json_data)
         official_data[farmer_num] = json_data
-    output_josn(official_data)
+#     output_josn(official_data)
     
 
 def output_josn(data) -> None:
@@ -257,10 +286,10 @@ def output_josn(data) -> None:
         f.write(json.dumps(data,  ensure_ascii=False))
     log.info('compelete')
 
-if __name__ == '__main__':
-    start_time = time.time()
-    load_monthly_employee()
-    load_insurance()
-    data_calssify()
-    log.info('time : ' + str(round(time.time() - start_time, 2)) + ' s')
+# if __name__ == '__main__':
+start_time = time.time()
+load_monthly_employee()
+load_insurance()
+data_calssify()
+log.info('time : ' + str(round(time.time() - start_time, 2)) + ' s')
     
