@@ -41,7 +41,7 @@ PERSON_ATTR = [
         'h_type',
         'dif',
     ]
-# use namedtuple increase code readable
+# use namedtuple promote the readable and flexibility of code
 Sample = namedtuple('Sample', SAMPLE_ATTR)
 Person = namedtuple('Person', PERSON_ATTR)
 
@@ -137,6 +137,7 @@ def data_calssify() -> None:
     comparison_dict = {}
     with open(COA_PATH, 'r', encoding='utf8') as f:
         for coa_data in f:
+            # create Person object
             person = Person._make(coa_data.strip().split(','))
             pid = person.id
             hhn = person.household_num
@@ -167,6 +168,7 @@ def load_samples() -> dict:
 def build_official_data(comparison_dict) -> None:
     db = DatabaseConnection()
     error_sample = []
+    # every element is a Sample object
     for sample in all_samples:
         name, address, birthday, farmer_id, farmer_num = '', '', '', '', ''
         # json 資料
@@ -184,17 +186,18 @@ def build_official_data(comparison_dict) -> None:
             if household_num in households:
                 # households.get(household_num) : 每戶 
                 # person : 每戶的每個人
+                # person is a Person object
                 for person in households.get(household_num):
-                    pid = person[1]
-                    person_name = person[2].strip()
+                    pid = person.id
+                    person_name = person.name
                     # json data 主要以 sample 的人當資料，所以要判斷戶內人是否為 sample
                     if pid == sample.id:
-                        name = person[2].strip()
+                        name = person.name
                         address = sample.addr
                         # 民國年
-                        birthday = str(int(person[3][:3]))
+                        birthday = str(int(person.birthday[:3]))
                     # 轉成實際年齡
-                    age = THIS_YEAR - int(person[3][:3])
+                    age = THIS_YEAR - int(person.birthday[:3])
                     DatabaseConnection.pid = pid
                     # 每年不一定會有 insurance 資料
                     if farmer_id in insurance_data:
@@ -202,12 +205,12 @@ def build_official_data(comparison_dict) -> None:
                     # json 裡的 household 對應一戶裡的所有個人資料
                     json_hh_person = [''] * 11
                     json_hh_person[0] = person_name
-                    json_hh_person[1] = str(int(person[3][:3]))
+                    json_hh_person[1] = str(int(person.birthday[:3]))
                     # role
-                    json_hh_person[2] = person[10]
+                    json_hh_person[2] = person.role
                     # json_hh_person[5-8]
                     if pid in insurance_data:
-                        for index, i in enumerate(insurance_data.get(person[1])):
+                        for index, i in enumerate(insurance_data.get(person.id)):
                             if i > 0:
                                 # ex 1234 -> 1,234
                                 json_hh_person[index+5] = format(i, '8,d')
