@@ -11,6 +11,15 @@ SAMPLE_PATH = '..\\..\\input\\simple_sample.txt'
 JSON_PATH = '..\\..\\output\\json\\公務資料.json'
 # JSON_PATH = '..\\..\\output\\json\\json.json'
 FOLDER_PATH = '..\\..\\output\\'+datetime.datetime.now().strftime('%Y%m%d_%H%M%S')+''
+
+SAMPLE_TITLES = ['農戶編號', '調查姓名', '電話', '地址', '出生年', '原層別', '連結編號']
+HOUSEHOLD_TITLES = ['[戶籍檔]', '姓名', '出生年', '關係', '農保', '老農津貼', '國民年金', '勞保給付', '勞退給付', '農保給付']
+TRANSFER_CROP_TITLES = ['[轉作補貼]', '項目', '作物名稱', '金額', '期別']
+DISASTER_TITLES = ['[災害]', '項目', '災害', '核定作物', '核定面積', '金額']
+SB_SBDY_TITLES = ['[105小大]', '姓名', '災害', '大專業農轉契作', '小地主出租給付', '離農獎勵']
+LIVESTOCK_TITLES = ['[畜牧資訊]', '年', '調查時間', '畜牧品項', '在養數量', '屠宰數量', '副產品名稱', '副產品數量']
+SAMPLE_ROSTER_TITLES = ['序號', '樣本套號 ', '農戶編號', '連結編號 ', '戶長姓名', '電話 ', '地址 ', '層別 ', '經營種類 ', '可耕作地面積', '成功打勾']
+
 TYPE_FLAG = '主選'
 ALIGNMENT = Alignment(horizontal='center', vertical='bottom')
 SIDE =Side(style='medium')
@@ -27,7 +36,18 @@ official_data = {}
 
 if not os.path.isdir(FOLDER_PATH):
     os.mkdir(FOLDER_PATH)
-    
+
+def set_excel_title(sheet, row_index, flag, *titles) -> None:
+    if flag == 'sample_roster':
+        for index, title in enumerate(titles[0], start=1):
+            cell = sheet.cell(row_index, index)
+            cell.alignment = Alignment(horizontal='center', vertical='bottom', wrap_text=True)
+            cell.value = title
+            cell.border = BORDER
+    else:
+        for index, title in enumerate(titles[0], start=1):
+                sheet.cell(column=index, row=row_index).value = title
+
 def read_official_data() -> None:
     with open(JSON_PATH, encoding='utf8') as f:
         global official_data
@@ -76,9 +96,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                 width = list(map(lambda x: x*1.054,[14.29, 9.29, 16.29, 37.29, 9.29, 11.29, 11.29, 11.29, 11.29]))
                 for i in range(1, len(width)+1):
                     sheet.column_dimensions[get_column_letter(i)].width = width[i-1]
-            titles = ['農戶編號', '調查姓名', '電話', '地址', '出生年', '原層別', '連結編號']
-            for index, title in enumerate(titles, start=1):
-                sheet.cell(column=index, row=row_index).value = title
+            set_excel_title(sheet, row_index, 'sample', SAMPLE_TITLES)
             row_index += 1
             info = [
                 farmer_num, sample_data.get('name'), sample_data.get('telephone'), sample_data.get('address'),
@@ -90,9 +108,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
             row_index += 1
             sheet.cell(column=col_index, row=row_index).value = ' ---------------------------------------------------------------- '
             row_index += 1
-            titles = ['[戶籍檔]', '姓名', '出生年', '關係', '農保', '老農津貼', '國民年金', '勞保給付', '勞退給付', '農保給付']
-            for index, title in enumerate(titles, start=1):
-                sheet.cell(column=index, row=row_index).value = title
+            set_excel_title(sheet, row_index, 'household', HOUSEHOLD_TITLES)
             household = sample_data.get('household')
             household.sort(key=lambda x: x[1])
 
@@ -125,9 +141,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                         crop_d[crop_name] = crop_d.get(crop_name) + amount
                 row_index += 1
                 item_index = 0
-                titles = ['[轉作補貼]', '項目', '作物名稱', '金額', '期別']
-                for index, title in enumerate(titles, start=1):
-                    sheet.cell(column=index, row=row_index).value = title
+                set_excel_title(sheet, row_index, 'transfer_crop', TRANSFER_CROP_TITLES)
                 for k, v in crop_d.items():
                     row_index += 1
                     item_index += 1
@@ -156,9 +170,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                         data['amount'] = data.get('amount') + amount
                     disaster_d[disaster_name] = data
                 row_index += 1
-                titles = ['[災害]', '項目', '災害', '核定作物', '核定面積', '金額']
-                for index, title in enumerate(titles, start=1):
-                    sheet.cell(column=index, row=row_index).value = title
+                set_excel_title(sheet, row_index, 'disaster', DISASTER_TITLES)
                 for k, v in disaster_d.items():
                     row_index += 1
                     item_index += 1
@@ -174,9 +186,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
             sb_sbdy = sample_data.get('sbSbdy')
             if len(sb_sbdy) != 0:
                 row_index += 1
-                titles = ['[105小大]', '姓名', '災害', '大專業農轉契作', '小地主出租給付', '離農獎勵']
-                for index, title in enumerate(titles, start=1):
-                    sheet.cell(column=index, row=row_index).value = title
+                set_excel_title(sheet, row_index, 'sb_sbdy', SB_SBDY_TITLES)
                 for i in sb_sbdy:
                     row_index += 1
                     for index, j in enumerate(i, start=1):
@@ -186,9 +196,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
             livestock = sample_data.get('livestock')
             if len(livestock) != 0:
                 row_index += 1
-                titles = ['[畜牧資訊]', '年', '調查時間', '畜牧品項', '在養數量', '屠宰數量', '副產品名稱', '副產品數量']
-                for index, title in enumerate(titles, start=1):
-                    sheet.cell(column=index, row=row_index).value = title
+                set_excel_title(sheet, row_index, 'livestock', LIVESTOCK_TITLES)
                 row_index += 1
                 for k, v in livestock.items():
                     sheet.cell(column=1, row=row_index).value = k
@@ -279,12 +287,7 @@ def output_sample_roster(c, s, type_flag=TYPE_FLAG) -> None:
         sorted_sample = ['', sample[11], sample[8], sample[8][-5:],
                          sample[1], sample[2], sample[3], sample[0], sample[9],sample[10], '']
         row_index += 1
-        titles = ['序號', '樣本套號 ', '農戶編號', '連結編號 ', '戶長姓名', '電話 ', '地址 ', '層別 ', '經營種類 ', '可耕作地面積', '成功打勾']
-        for index, title in enumerate(titles, start=1):
-            cell = sheet.cell(row_index, index)
-            cell.alignment = Alignment(horizontal='center', vertical='bottom', wrap_text=True)
-            cell.value = title
-            cell.border = BORDER
+        set_excel_title(sheet, row_index, 'sample_roster', SAMPLE_ROSTER_TITLES)
         row_index += 1
         for index, i in enumerate(sorted_sample, start=1):
             cell = sheet.cell(row_index, index)
