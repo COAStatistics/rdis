@@ -2,6 +2,7 @@ import datetime
 import json
 import openpyxl
 import os
+from collections import namedtuple
 from log import log
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment, Border, Side
@@ -19,6 +20,21 @@ DISASTER_TITLES = ['[災害]', '項目', '災害', '核定作物', '核定面積
 SB_SBDY_TITLES = ['[105小大]', '姓名', '災害', '大專業農轉契作', '小地主出租給付', '離農獎勵']
 LIVESTOCK_TITLES = ['[畜牧資訊]', '年', '調查時間', '畜牧品項', '在養數量', '屠宰數量', '副產品名稱', '副產品數量']
 SAMPLE_ROSTER_TITLES = ['序號', '樣本套號 ', '農戶編號', '連結編號 ', '戶長姓名', '電話 ', '地址 ', '層別 ', '經營種類 ', '可耕作地面積', '成功打勾']
+SAMPLE_ATTR = [
+        'layer',
+        'name',
+        'tel',
+        'addr',
+        'county',
+        'town',
+        'link_num',
+        'id',
+        'num',
+        'main_type',
+        'area',
+        'sample_num',
+    ]
+Sample = namedtuple('Sample', SAMPLE_ATTR)
 
 TYPE_FLAG = '主選'
 ALIGNMENT = Alignment(horizontal='center', vertical='bottom')
@@ -56,8 +72,8 @@ def read_official_data() -> None:
 def read_sample() -> None:
     with open(SAMPLE_PATH, encoding='utf8') as f:
         for line in f:
-            sample = line.split('\t')
-            county = sample[4]
+            sample = Sample._make(line.split('\t')) 
+            county = sample.county
             if county not in sample_dict:
                 county_l = []
                 county_l.append(sample)
@@ -70,26 +86,26 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
     for county, samples in sample_dict.items():
         log.info('county : ' + county)
         if type_flag == '主選':
-            samples.sort(key=lambda x:x[5])
+            samples.sort(key=lambda x:x.town)
         else:
-            samples.sort(key=lambda x:x[8][-5:])
+            samples.sort(key=lambda x:x.num[-5:])
         wb = openpyxl.Workbook()
         col_index = 1
         row_index = 1
         county = county
-        town = samples[0][5]
+        town = samples[0].town
         log.info('town : ' + town)
         sheet = wb.active
         sheet.title = town if type_flag == '主選' else 'sheet'+str(row_index+1)
-        for person in samples:
-            log.info('person name : ' + person[1])
+        for sample in samples:
+            log.info('person name : ' + sample.name)
             scholarship = ''
             sb = ''
-            farmer_num = person[8]
+            farmer_num = sample.num
             crops = []
             sample_data = official_data.get(farmer_num)
-            if type_flag == '主選' and town != person[5]:
-                town = person[5]
+            if type_flag == '主選' and town != sample.town:
+                town = sample.town
                 sheet = wb.create_sheet(town)
                 row_index = 1
             if row_index-1 == 0:
@@ -257,15 +273,15 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
         
 def output_sample_roster(c, s, type_flag=TYPE_FLAG) -> None:
     county = c
-    town = s[0][5]
+    town = s[0].town
     wb = openpyxl.Workbook()
     sheet = wb.active
     sheet.title = town
     row_index = 4
     col_index = 1
     for sample in s:
-        if town != sample[5]:
-            town = sample[5]
+        if town != sample.town:
+            town = sample.town
             sheet = wb.create_sheet(town)
             row_index = 4
             col_index = 1
@@ -284,8 +300,8 @@ def output_sample_roster(c, s, type_flag=TYPE_FLAG) -> None:
                 if index == 4:
                     for i in range(1, 12):
                         sheet.cell(index, i).border = BORDER
-        sorted_sample = ['', sample[11], sample[8], sample[8][-5:],
-                         sample[1], sample[2], sample[3], sample[0], sample[9],sample[10], '']
+        sorted_sample = ['', sample.sample_num, sample.num, sample.num[-5:],
+                         sample.name, sample.tel, sample.addr, sample.layer, sample.main_type, sample.area, '']
         row_index += 1
         set_excel_title(sheet, row_index, 'sample_roster', SAMPLE_ROSTER_TITLES)
         row_index += 1
