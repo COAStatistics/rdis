@@ -48,7 +48,7 @@ BORDER = Border(
 
 # sorted by county
 sample_dict = {}
-official_data = {}
+official_data = json.loads(open(JSON_PATH, encoding='utf8').read())
 
 if not os.path.isdir(FOLDER_PATH):
     os.mkdir(FOLDER_PATH)
@@ -64,12 +64,11 @@ def set_excel_title(sheet, row_index, flag, *titles) -> None:
         for index, title in enumerate(titles[0], start=1):
                 sheet.cell(column=index, row=row_index).value = title
 
-def read_official_data() -> None:
-    with open(JSON_PATH, encoding='utf8') as f:
-        global official_data
-        official_data = json.loads(f.read())
 
 def read_sample() -> None:
+    """
+    讀取 sample 檔並使用 dict, key = county : value = 住在這縣市的人
+    """
     with open(SAMPLE_PATH, encoding='utf8') as f:
         for line in f:
             sample = Sample._make(line.split('\t')) 
@@ -270,7 +269,8 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
         row_index += 1
         wb.save(FOLDER_PATH + '\\' + county + '.xlsx')
         output_sample_roster(county, samples)
-        
+
+# 輸出樣本名冊 excel
 def output_sample_roster(c, s, type_flag=TYPE_FLAG) -> None:
     county = c
     town = s[0].town
@@ -315,6 +315,5 @@ def output_sample_roster(c, s, type_flag=TYPE_FLAG) -> None:
                 cell.value = i
             cell.border = BORDER
     wb.save(FOLDER_PATH + '\\' + county + '_樣本名冊.xlsx')
-read_official_data()
 read_sample()
 output_excel()

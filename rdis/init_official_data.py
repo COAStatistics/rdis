@@ -249,6 +249,7 @@ def build_official_data(comparison_dict) -> None:
                         # 獎學金申請人資格，申請對象至少15歲，故假設申請人30歲
                         if age >= 30:
                             json_hh_person[9] = db.get_scholarship()
+                    
                     json_household.append(json_hh_person)
         else:
             DatabaseConnection.pid = farmer_id
@@ -278,7 +279,8 @@ def build_official_data(comparison_dict) -> None:
         log.info('json data:')
         log.info(json_data)
         official_data[farmer_num] = json_data
-#     output_josn(official_data)
+    db.close_conn()
+    output_josn(official_data)
     
 
 def output_josn(data) -> None:
