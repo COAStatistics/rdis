@@ -3,6 +3,7 @@ import xlrd
 import re
 import time
 from collections import namedtuple
+from collections import OrderedDict
 from db_conn import DatabaseConnection
 from log import log
 
@@ -169,11 +170,15 @@ def load_samples() -> dict:
 def build_official_data(comparison_dict) -> None:
     db = DatabaseConnection()
     error_sample = []
+    person_key = ['name', 'birthday', 'role', 'farmer_insurance', 'elder_allowance', 'national_pension',
+                  'labor_insurance', 'labor_pension', 'farmer_insurance_payment', 'scholarship', 'sb']
+    #key dict: for readable
+    k_d = {person_key[i]:i for i in range(len(person_key))}
     # every element is a Sample object
     for sample in all_samples:
         name, address, birthday, farmer_id, farmer_num = '', '', '', '', ''
         # json 資料
-        json_data = {}
+        json_data = OrderedDict()
         json_household = []
         json_sb_sbdy = []
         json_disaster = []
@@ -203,30 +208,37 @@ def build_official_data(comparison_dict) -> None:
                     # 每年不一定會有 insurance 資料
                     if farmer_id in insurance_data:
                         json_data['insurance'] = insurance_data.get(farmer_id)
+                        
                     # json 裡的 household 對應一戶裡的所有個人資料
                     json_hh_person = [''] * 11
-                    json_hh_person[0] = person_name
-                    json_hh_person[1] = str(int(person.birthday[:3]))
-                    # role
-                    json_hh_person[2] = person.role
-                    # json_hh_person[5-8]
+                    json_hh_person[k_d['name']] = person_name
+                    json_hh_person[k_d['birthday']] = str(int(person.birthday[:3]))
+                    json_hh_person[k_d['role']] = person.role
                     if pid in insurance_data:
                         for index, i in enumerate(insurance_data.get(person.id)):
                             if i > 0:
-                                # ex 1234 -> 1,234
-                                json_hh_person[index+5] = format(i, '8,d')
+                                # format : 1234 -> 1,234
+                                if index == 0:
+                                    json_hh_person[k_d['national_pension']] = format(i, '8,d')
+                                if index == 1:
+                                    json_hh_person[k_d['labor_insurance']] = format(i, '8,d')
+                                if index == 2:
+                                    json_hh_person[k_d['labor_pension']] = format(i, '8,d')
+                                if index == 3:
+                                    json_hh_person[k_d['farmer_insurance_payment']] = format(i, '8,d')
+                                
                     # 根據年齡來過濾是否訪問 db
                     # 農保至少15歲
                     if age >= 15:
-                        json_hh_person[3] = db.get_farmer_insurance()
+                        json_hh_person[k_d['farmer_insurance']] = db.get_farmer_insurance()
                         # 老農津貼至少65歲
                         if age >= 65:
-                            json_hh_person[4] = db.get_elder_allowance()
+                            json_hh_person[k_d['elder_allowance']] = db.get_elder_allowance()
                         # 佃農18-55歲，地主至少18歲
                         if age >= 18:
-                            json_hh_person[10] = db.get_landlord()
+                            json_hh_person[k_d['sb']] = db.get_landlord()
                             if age <= 55:
-                                json_hh_person[10] += db.get_tenant_farmer()
+                                json_hh_person[k_d['sb']] += db.get_tenant_farmer()
                             subsidy = [
                                     person_name,
                                     db.get_tenant_transfer_subsidy(),
@@ -249,7 +261,7 @@ def build_official_data(comparison_dict) -> None:
                                 json_livestock.update(livestock)
                         # 獎學金申請人資格，申請對象至少15歲，故假設申請人30歲
                         if age >= 30:
-                            json_hh_person[9] = db.get_scholarship()
+                            json_hh_person[k_d['scholarship']] = db.get_scholarship()
                     
                     json_household.append(json_hh_person)
         else:
@@ -262,6 +274,7 @@ def build_official_data(comparison_dict) -> None:
             error_sample.append(sample)
             log.warning('error sample:')
             log.warning(sample)
+            
         # create json data
         json_data['name'] = name
         json_data['address'] = address
