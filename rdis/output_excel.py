@@ -139,13 +139,13 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                     sheet.cell(column=index, row=row_index).value = p_data
             # 輸出申報核定資料，檢查是否有資料
             declaration = sample_data.get('declaration')
-            if declaration != '':
+            if declaration:
                 row_index += 1
                 sheet.cell(column=1, row=row_index).value = '[申報核定]'
                 sheet.cell(column=2, row=row_index).value = declaration
             # 輸出轉作補貼資料，檢查是否有資料
             crop_sbdy = sample_data.get('cropSbdy')
-            if len(crop_sbdy) != 0:
+            if crop_sbdy:
                 crop_d = {}
                 for i in crop_sbdy:
                     crop_name = i[0]
@@ -168,7 +168,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                         crops.append(k)
             # 輸出災害補助資料，檢查是否有資料
             disaster = sample_data.get('disaster')
-            if len(disaster) != 0:
+            if disaster:
                 item_index = 0
                 disaster_d = {}
                 for i in disaster:
@@ -199,7 +199,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                         crops.append(l[1])
             # 輸出小大補助資料，檢查是否有資料
             sb_sbdy = sample_data.get('sbSbdy')
-            if len(sb_sbdy) != 0:
+            if sb_sbdy:
                 row_index += 1
                 set_excel_title(sheet, row_index, 'sb_sbdy', SB_SBDY_TITLES)
                 for i in sb_sbdy:
@@ -209,7 +209,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                         
             # 輸出畜牧資料，檢查是否有資料
             livestock = sample_data.get('livestock')
-            if len(livestock) != 0:
+            if livestock:
                 row_index += 1
                 set_excel_title(sheet, row_index, 'livestock', LIVESTOCK_TITLES)
                 row_index += 1

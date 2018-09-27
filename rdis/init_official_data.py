@@ -38,8 +38,9 @@ PERSON_ATTR = [
         'h_name',
         'addr',
         'role',
+        'annotation',
         'h_type',
-        'dif',
+        'h_code',
     ]
 # use namedtuple promote the readable and flexibility of code
 Sample = namedtuple('Sample', SAMPLE_ATTR)
