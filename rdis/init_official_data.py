@@ -5,7 +5,7 @@ import time
 from collections import namedtuple
 from collections import OrderedDict
 from db_conn import DatabaseConnection
-from log import log
+from log import log, err_log
 
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
 INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
@@ -15,6 +15,7 @@ COA_PATH = '..\\..\\input\\107.txt'
 SAMPLE_PATH = '..\\..\\input\\easy.txt'
 OUTPUT_PATH = '..\\..\\output\\json\\公務資料.json'
 THIS_YEAR = 107
+ANNOTATION_DICT = {'0': '', '1': '死亡', '2': '除戶'}
 # defined namedtuple attribute
 SAMPLE_ATTR = [
         'layer',
@@ -33,16 +34,17 @@ SAMPLE_ATTR = [
 PERSON_ATTR = [
         'addr_code',
         'id',
-        'name',
+#         'name',
         'birthday',
         'household_num',
-        'h_name',
+#         'h_name',
         'addr',
         'role',
         'annotation',
         'h_type',
         'h_code',
     ]
+
 # use namedtuple promote the readable and flexibility of code
 Sample = namedtuple('Sample', SAMPLE_ATTR)
 Person = namedtuple('Person', PERSON_ATTR)
@@ -169,8 +171,7 @@ def load_samples() -> dict:
 
 def build_official_data(comparison_dict) -> None:
     db = DatabaseConnection()
-    error_sample = []
-    person_key = ['name', 'birthday', 'role', 'farmer_insurance', 'elder_allowance', 'national_pension',
+    person_key = ['birthday', 'role', 'annotation', 'farmer_insurance', 'elder_allowance', 'national_pension',
                   'labor_insurance', 'labor_pension', 'farmer_insurance_payment', 'scholarship', 'sb']
     #key dict: for readable
     k_d = {person_key[i]:i for i in range(len(person_key))}
@@ -195,10 +196,9 @@ def build_official_data(comparison_dict) -> None:
                 # person is a Person object
                 for person in households.get(household_num):
                     pid = person.id
-                    person_name = person.name
                     # json data 主要以 sample 的人當資料，所以要判斷戶內人是否為 sample
                     if pid == sample.id:
-                        name = person.name
+                        name = sample.name
                         address = sample.addr
                         # 民國年
                         birthday = str(int(person.birthday[:3]))
@@ -211,9 +211,12 @@ def build_official_data(comparison_dict) -> None:
                         
                     # json 裡的 household 對應一戶裡的所有個人資料
                     json_hh_person = [''] * 11
-                    json_hh_person[k_d['name']] = person_name
+                    
                     json_hh_person[k_d['birthday']] = str(int(person.birthday[:3]))
                     json_hh_person[k_d['role']] = person.role
+                    
+                    if pid != sample.id:
+                        json_hh_person[k_d['annotation']] = ANNOTATION_DICT.get(person.annotation)
                     if pid in insurance_data:
                         for index, i in enumerate(insurance_data.get(person.id)):
                             if i > 0:
@@ -240,7 +243,7 @@ def build_official_data(comparison_dict) -> None:
                             if age <= 55:
                                 json_hh_person[k_d['sb']] += db.get_tenant_farmer()
                             subsidy = [
-                                    person_name,
+#                                     person_name,
                                     db.get_tenant_transfer_subsidy(),
                                     db.get_landlord_rent(),
                                     db.get_landlord_retire()
@@ -271,9 +274,7 @@ def build_official_data(comparison_dict) -> None:
             json_hh_person = [''] * 11
             json_hh_person[0] = name
             json_household.append(json_hh_person)
-            error_sample.append(sample)
-            log.warning('error sample:')
-            log.warning(sample)
+            err_log.error(sample)
             
         # create json data
         json_data['name'] = name
@@ -284,14 +285,12 @@ def build_official_data(comparison_dict) -> None:
         json_data['layer'] = sample.layer
         json_data['serial'] = farmer_num[-5:]
         json_data['household'] = json_household
-        json_data['monEmp'] = monthly_employee_dict.get(farmer_num)
+        json_data['monEmp'] = monthly_employee_dict.get(farmer_num, [])
         json_data['declaration'] = json_declaration[:-2]
         json_data['cropSbdy'] = json_crop_sbdy
         json_data['disaster'] = json_disaster
         json_data['livestock'] = json_livestock
         json_data['sbSbdy'] = json_sb_sbdy
-        log.info('json data:')
-        log.info(json_data)
         official_data[farmer_num] = json_data
     db.close_conn()
     output_josn(official_data)
@@ -300,12 +299,14 @@ def build_official_data(comparison_dict) -> None:
 def output_josn(data) -> None:
     with open(OUTPUT_PATH, 'w', encoding='utf8') as f:
         f.write(json.dumps(data,  ensure_ascii=False))
-    log.info('compelete')
+    print('complete', len(official_data), ' records')
+    log.info(len(official_data), ' records')
 
 # if __name__ == '__main__':
 start_time = time.time()
-load_monthly_employee()
-load_insurance()
+#     load_monthly_employee()
+#     load_insurance()
 data_calssify()
-log.info('time : ' + str(round(time.time() - start_time, 2)) + ' s')
+print(int((time.time()-start_time) / 60), 'min')
+log.info(int((time.time()-start_time) / 60), ' min')
     

@@ -1,32 +1,37 @@
 import logging
+from functools import reduce
 
 
 class SimpleLog(object):
-
-    def __init__(self):
-        self.logger = logging.getLogger()
-        self.logger.setLevel(logging.DEBUG)
+    
+    def __init__(self, file_name, console=False):
+        self.logger = logging.getLogger(file_name)
+        self.logger.setLevel(20)
         fmt = '[%(asctime)s] - %(levelname)s : %(message)s'
         formatter = logging.Formatter(fmt)
-        stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(formatter)
-        self.logger.addHandler(stream_handler)
-#         log_file = './log.log'
-#         file_handler = logging.FileHandler(log_file, encoding='utf8')
-#         file_handler.setFormatter(formatter)
-#         self.logger.addHandler(file_handler)
+        if console:
+            stream_handler = logging.StreamHandler()
+            stream_handler.setFormatter(formatter)
+            self.logger.addHandler(stream_handler)
+        log_file = './' + file_name + '.log'
+        file_handler = logging.FileHandler(log_file, encoding='utf8')
+        file_handler.setFormatter(formatter)
+        self.logger.addHandler(file_handler)
 
     def debug(self, msg):
         self.logger.debug(msg)
 
-    def info(self, msg):
-        self.logger.info(msg)
+    def info(self, *msg):
+        message = reduce((lambda a, b: a + b), [str(i) for i in msg])
+        self.logger.info(message)
 
-    def warning(self, msg):
-        self.logger.warning(msg)
+    def warning(self, *msg):
+        message = reduce((lambda a, b: a + b), [str(i) for i in msg])
+        self.logger.warning(message)
 
-    def error(self, msg):
-        self.logger.error(msg)
+    def error(self, *msg):
+        message = reduce((lambda a, b: a + b), [str(i) for i in msg])
+        self.logger.error(message)
 
     def critical(self, msg):
         self.logger.critical(msg)
@@ -38,9 +43,13 @@ class SimpleLog(object):
         self.logger.setLevel(level)
 
     @staticmethod
+    def set_msg(*args):
+        SimpleLog.msg_l.extend(list(args))
+
+    @staticmethod
     def disable():
         logging.disable(50)
 
 
-log = SimpleLog()
-log.set_level(20)
+log = SimpleLog('info')
+err_log = SimpleLog('warning', console=True)

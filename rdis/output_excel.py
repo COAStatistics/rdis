@@ -7,14 +7,14 @@ from log import log
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment, Border, Side
 
-SAMPLE_PATH = '..\\..\\input\\simple_sample.txt'
+SAMPLE_PATH = '..\\..\\input\\easy.txt'
 # SAMPLE_PATH = '..\\..\\input\\easy.txt'
 JSON_PATH = '..\\..\\output\\json\\公務資料.json'
 # JSON_PATH = '..\\..\\output\\json\\json.json'
 FOLDER_PATH = '..\\..\\output\\'+datetime.datetime.now().strftime('%Y%m%d_%H%M%S')+''
 
 SAMPLE_TITLES = ['農戶編號', '調查姓名', '電話', '地址', '出生年', '原層別', '連結編號']
-HOUSEHOLD_TITLES = ['[戶籍檔]', '姓名', '出生年', '關係', '農保', '老農津貼', '國民年金', '勞保給付', '勞退給付', '農保給付']
+HOUSEHOLD_TITLES = ['[戶籍檔]', '出生年', '關係', '死亡除戶', '農保', '老農津貼', '國民年金', '勞保給付', '勞退給付', '農保給付']
 TRANSFER_CROP_TITLES = ['[轉作補貼]', '項目', '作物名稱', '金額', '期別']
 DISASTER_TITLES = ['[災害]', '項目', '災害', '核定作物', '核定面積', '金額']
 SB_SBDY_TITLES = ['[105小大]', '姓名', '災害', '大專業農轉契作', '小地主出租給付', '離農獎勵']

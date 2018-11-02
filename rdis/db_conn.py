@@ -1,7 +1,10 @@
+import linecache
 import pyodbc
 import sys
 import re
+from log import err_log
 
+INFO_PATH = '..\\..\\info.txt'
 class DatabaseConnection:
     FARMER_INSURANCE =\
     """
@@ -12,7 +15,7 @@ class DatabaseConnection:
     
     ELDER_ALLOWANCE =\
     """
-    SELECT [身份證字號]
+    SELECT [appID]
     FROM [elderly_allowance].[dbo].[raw_106]
     WHERE [appID] = convert(nvarchar(255), ?)
     """
@@ -91,7 +94,10 @@ class DatabaseConnection:
     """
     
     pid = None
-    args = 'Driver={SQL Server};Server=172.16.21.8;Database=%s;Trusted_Connection=yes;'
+#     args = 'Driver={SQL Server};Server=172.16.21.8;Database=%s;Trusted_Connection=yes;'
+    username = linecache.getline(INFO_PATH, 1)
+    pwd = linecache.getline(INFO_PATH, 2)
+    args = 'Driver={SQL Server};Server=172.16.21.8;Database=%s;UID='+ username.strip() +';PWD='+ pwd.strip() +''
     
     def __init__(self, db_name='fallow'):
         self.conn = pyodbc.connect(DatabaseConnection.args % db_name)
@@ -238,8 +244,7 @@ class DatabaseConnection:
                     c_s[1] = i.price
                     c_s[2] = i.period
                     c_s_l.append(c_s)
-            return c_s_l
-        
+            return c_s_l    
         except Exception:
             info = sys.exc_info()
             print(info[0], '\n', info[1])
@@ -295,7 +300,7 @@ class DatabaseConnection:
             if rows != None:
                 for i in rows:
                     s += i.name + '-' + str(i.scholarship) + ','
-        
+                    
         except Exception:
             info = sys.exc_info()
             print(info[0], '\n', info[1])
