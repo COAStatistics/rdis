@@ -6,35 +6,35 @@ class DatabaseConnection:
     FARMER_INSURANCE =\
     """
     SELECT [id]
-    FROM [farmer_insurance].[dbo].[105Peasant]
+    FROM [farmer_insurance].[dbo].[106Peasant]
     WHERE id = convert(nvarchar(255), ?)
     """
     
     ELDER_ALLOWANCE =\
     """
     SELECT [身份證字號]
-    FROM [elderly_allowance].[dbo].[105]
-    WHERE [身份證字號] = convert(nvarchar(255), ?)
+    FROM [elderly_allowance].[dbo].[raw_106]
+    WHERE [appID] = convert(nvarchar(255), ?)
     """
     
     LANDLORD =\
     """
     SELECT [ownerID]
-    FROM [small & big].[dbo].[105rent_oid_index_view]
+    FROM [small & big].[dbo].[107tenantList_oid_index_view]
     WHERE [ownerID] = convert(nvarchar(255), ?)
     """
     
     TENANT =\
     """
     SELECT [appID]
-    FROM [small & big].[dbo].[105rent_id_index_view]
+    FROM [small & big].[dbo].[107tenantList_id_index_view]
     WHERE [appID] = convert(nvarchar(255), ?)
     """
     
     TENANT_TRANSFER_SUBSIDY =\
     """
     SELECT [大佃農身份證號], SUM([補貼金額]) AS money
-    FROM [small & big].[dbo].[105r_farm_temp]
+    FROM [small & big].[dbo].[106tenantTransfer]
     WHERE [大佃農身份證號] = convert(nvarchar(255), ?)
     GROUP BY [大佃農身份證號]
     """
@@ -42,7 +42,7 @@ class DatabaseConnection:
     LANDLORD_RENT =\
     """
     SELECT [地主身份證號], SUM([政府應付]) AS money
-    FROM [small & big].[dbo].[105r_pay]
+    FROM [small & big].[dbo].[106landlordRent]
     WHERE [地主身份證號] = convert(nvarchar(255), ?)
     GROUP BY [地主身份證號]
     """
@@ -50,7 +50,7 @@ class DatabaseConnection:
     LANDLORD_RETIRE =\
     """
     SELECT [地主身份證號], SUM([政府應付]) AS money
-    FROM [small & big].[dbo].[105r_paya]
+    FROM [small & big].[dbo].[106landlordRetire]
     WHERE [地主身份證號]= convert(nvarchar(255), ?)
     GROUP BY [地主身份證號]
     """
@@ -65,21 +65,21 @@ class DatabaseConnection:
     DECLARATION =\
     """
     SELECT [RICE1], [RICE2], [RICE3], [CHGCD1], [CHGCD2], [CHGCD3]
-    FROM [declare].[dbo].[1051DCL_farmerSurvey]
-    WHERE [DCL_PSTID] = convert(nvarchar(255), ?)
+    FROM [fallow].[dbo].[107DCL_farmerSurvey]
+    WHERE [appID] = convert(nvarchar(255), ?)
     """
     
     CROP_SUBSIDY =\
     """
     SELECT [crop], [price], [period]
-    FROM [fallow].[dbo].[106phstemp_farmerSurvey]
+    FROM [fallow].[dbo].[107transferSubsidy_farmerSurvey]
     WHERE [id] = convert(nvarchar(255), ?)
     """
     
     LIVESTOCK =\
     """
     SELECT *
-    FROM [general_try_matt].[dbo].[106farmerSurvey]
+    FROM [nais3].[dbo].[107farmerSurvey_livestock]
     WHERE [FarmerId] = convert(nvarchar(255), ?)
     """
     
