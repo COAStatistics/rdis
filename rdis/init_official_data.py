@@ -10,9 +10,10 @@ from log import log, err_log
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
 INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
 # INSURANCE_PATH = '..\\..\\input\\insurance.xlsx'
-COA_PATH = '..\\..\\input\\107.txt'
-# COA_PATH = '..\\..\\input\\coa_d03_10611.txt'
-SAMPLE_PATH = '..\\..\\input\\easy.txt'
+# COA_PATH = '..\\..\\input\\107.txt'
+COA_PATH = '..\\..\\input\\coa_d03_10711.txt'
+# SAMPLE_PATH = '..\\..\\input\\easy.txt'
+SAMPLE_PATH = '..\\..\\input\\main_107farmerSurvey.txt'
 OUTPUT_PATH = '..\\..\\output\\json\\公務資料.json'
 THIS_YEAR = 107
 ANNOTATION_DICT = {'0': '', '1': '死亡', '2': '除戶'}
@@ -55,6 +56,7 @@ insurance_data = {}
 all_samples = []
 households = {}
 official_data = {}
+sample_count = 0
 
 def load_monthly_employee() -> None:
     sample_list = [line.strip().split('\t') for line in open(MON_EMP_PATH, 'r', encoding='utf8')]
@@ -149,8 +151,8 @@ def data_calssify() -> None:
             if hhn in households:
 #                 if person_info[11] != '1' and person_info[12].strip() == '':
                     # 避免人重複
-                    if all((i.id.find(person.id) == -1) for i in households.get(hhn)):
-                        households.get(hhn).append(person)
+#                     if all((i.id.find(person.id) == -1) for i in households.get(hhn)):
+                households.get(hhn).append(person)
             else:
                 # 一戶所有的人
                 persons = []
@@ -162,14 +164,23 @@ def data_calssify() -> None:
     build_official_data(comparison_dict)
     
 def load_samples() -> dict:
+    no_id_count = 0
     global all_samples
     # 將 sample 檔裡所有的資料原封不動存到列表裡
     all_samples = [Sample._make(l.split('\t')) for l in open(SAMPLE_PATH, encoding='utf8')]
     samples_dict = {}
-    samples_dict = {s.id:s for s in all_samples if s.id not in samples_dict and re.match('^[A-Z][12][0-9]{8}$', s.id)}
+    for s in all_samples:
+        if s.id not in samples_dict and re.match('^[A-Z]{1}[1-2]{1}[0-9]{8}$', s.id):
+            samples_dict[s.id] = s
+        else:
+            no_id_count += 1
+            err_log.error(no_id_count, ', sample name = ', s.name, ', sample id = ', s.id)
+    global sample_count; sample_count = len(all_samples)
     return samples_dict
 
 def build_official_data(comparison_dict) -> None:
+    no_hh_count = 0
+    count = 0
     db = DatabaseConnection()
     person_key = ['birthday', 'role', 'annotation', 'farmer_insurance', 'elder_allowance', 'national_pension',
                   'labor_insurance', 'labor_pension', 'farmer_insurance_payment', 'scholarship', 'sb']
@@ -177,6 +188,7 @@ def build_official_data(comparison_dict) -> None:
     k_d = {person_key[i]:i for i in range(len(person_key))}
     # every element is a Sample object
     for sample in all_samples:
+        count += 1
         name, address, birthday, farmer_id, farmer_num = '', '', '', '', ''
         # json 資料
         json_data = OrderedDict()
@@ -250,34 +262,39 @@ def build_official_data(comparison_dict) -> None:
                                 ]
                             if any((i != '0') for i in subsidy[1:]):
                                 json_sb_sbdy.append(subsidy)
+                                
                             disaster = db.get_disaster()
-                            if len(disaster) != 0:
-                                json_disaster += disaster
+                            if disaster:
+                                json_disaster.extend(disaster)
+                                
                             declaration = db.get_declaration()
-                            if declaration != 0 and declaration not in json_declaration:
+                            if declaration and declaration not in json_declaration:
                                 json_declaration += declaration + ','
+                                assert len(json_declaration) != 0
+                                
                             crop_sbdy = db.get_crop_subsidy()
-                            if len(crop_sbdy) != 0:
-                                json_crop_sbdy += crop_sbdy
+                            if crop_sbdy:
+                                json_crop_sbdy.extend(crop_sbdy)
+                                
                             livestock = db.get_livestock()
-                            if len(livestock) != 0:
+                            if livestock:
                                 json_livestock.update(livestock)
+                                
                         # 獎學金申請人資格，申請對象至少15歲，故假設申請人30歲
                         if age >= 30:
                             json_hh_person[k_d['scholarship']] = db.get_scholarship()
                     
                     json_household.append(json_hh_person)
         else:
+            no_hh_count += 1
             DatabaseConnection.pid = farmer_id
-            name = sample.name
             address = sample.addr
             json_hh_person = [''] * 11
-            json_hh_person[0] = name
             json_household.append(json_hh_person)
-            err_log.error(sample)
+            err_log.error(no_hh_count, ', Not in household file. ', sample)
             
         # create json data
-        json_data['name'] = name
+        json_data['name'] = sample.name
         json_data['address'] = address
         json_data['birthday'] = birthday
         json_data['farmerId'] = farmer_id
@@ -292,6 +309,7 @@ def build_official_data(comparison_dict) -> None:
         json_data['livestock'] = json_livestock
         json_data['sbSbdy'] = json_sb_sbdy
         official_data[farmer_num] = json_data
+        print('%.2f%%' %(count/sample_count * 100))
     db.close_conn()
     output_josn(official_data)
     

@@ -12,6 +12,7 @@ class SimpleLog(object):
         if console:
             stream_handler = logging.StreamHandler()
             stream_handler.setFormatter(formatter)
+            self.__msg = ''
             self.logger.addHandler(stream_handler)
         log_file = './' + file_name + '.log'
         file_handler = logging.FileHandler(log_file, encoding='utf8')
@@ -28,11 +29,13 @@ class SimpleLog(object):
     def warning(self, *msg):
         message = reduce((lambda a, b: a + b), [str(i) for i in msg])
         self.logger.warning(message)
-
+        
     def error(self, *msg):
         message = reduce((lambda a, b: a + b), [str(i) for i in msg])
+        self.__msg = message
         self.logger.error(message)
-
+        
+        
     def critical(self, msg):
         self.logger.critical(msg)
 
@@ -41,7 +44,11 @@ class SimpleLog(object):
 
     def set_level(self, level):
         self.logger.setLevel(level)
-
+    
+    @property
+    def msg(self):
+        return self.__msg
+    
     @staticmethod
     def set_msg(*args):
         SimpleLog.msg_l.extend(list(args))

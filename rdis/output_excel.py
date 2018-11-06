@@ -228,27 +228,27 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
             else:
                 row_index += 1
             # 輸出每月僱工資料
-            mon_emp = sample_data.get('monEmp')
-            titles = [
-                        '[每月僱工]', '一月', '二月', '三月', '四月', '五月', '六月',
-                        '七月', '八月', '九月', '十月', '十一月', '十二月'
-                    ]
-            for index, title in enumerate(titles, start=1):
-                if index >= 8:
-                    sheet.cell(column=index-6, row=row_index).value = title
-                else:
-                    sheet.cell(column=index, row=row_index).value = title
-                if index == 7:
-                    row_index += 1
-                    for i, mon in enumerate(mon_emp, start=2):
-                        sheet.cell(column=i, row=row_index).value = mon
-                        if i == 7:
-                            row_index += 1
-                            break
-                if index == 13:
-                    row_index += 1
-                    for i, mon in enumerate(mon_emp[6:], start=2):
-                        sheet.cell(column=i, row=row_index).value = mon
+#             mon_emp = sample_data.get('monEmp')
+#             titles = [
+#                         '[每月僱工]', '一月', '二月', '三月', '四月', '五月', '六月',
+#                         '七月', '八月', '九月', '十月', '十一月', '十二月'
+#                     ]
+#             for index, title in enumerate(titles, start=1):
+#                 if index >= 8:
+#                     sheet.cell(column=index-6, row=row_index).value = title
+#                 else:
+#                     sheet.cell(column=index, row=row_index).value = title
+#                 if index == 7:
+#                     row_index += 1
+#                     for i, mon in enumerate(mon_emp, start=2):
+#                         sheet.cell(column=i, row=row_index).value = mon
+#                         if i == 7:
+#                             row_index += 1
+#                             break
+#                 if index == 13:
+#                     row_index += 1
+#                     for i, mon in enumerate(mon_emp[6:], start=2):
+#                         sheet.cell(column=i, row=row_index).value = mon
             # 年度作物
             if len(crops) != 0:
                 row_index += 1
@@ -289,7 +289,7 @@ def output_sample_roster(c, s, type_flag=TYPE_FLAG) -> None:
             width = list(map(lambda x: x*1.13,[5.29, 5.29, 13.29, 9.29, 9.29, 10.29, 50.29, 4.29, 5.29, 20.29, 5.29]))
             for i in range(1, len(width)+1):
                 sheet.column_dimensions[get_column_letter(i)].width = width[i-1]
-            titles = ['106年主力農家所得調查樣本名冊─'+type_flag, '本頁已完成調查戶數：_____', '失敗戶請填寫失敗訪視紀錄表', '']
+            titles = ['107年主力農家所得調查樣本名冊─'+type_flag, '本頁已完成調查戶數：_____', '失敗戶請填寫失敗訪視紀錄表', '']
             for index, title in enumerate(titles, start=1):
                 sheet.merge_cells(start_row=index, start_column=col_index, end_row=index, end_column=11)
                 cell = sheet.cell(index, col_index)
