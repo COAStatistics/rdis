@@ -7,14 +7,15 @@ from collections import OrderedDict
 from db_conn import DatabaseConnection
 from log import log, err_log
 
+MAIN = False
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
 INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
 # INSURANCE_PATH = '..\\..\\input\\insurance.xlsx'
 # COA_PATH = '..\\..\\input\\107.txt'
 COA_PATH = '..\\..\\input\\coa_d03_10711.txt'
 # SAMPLE_PATH = '..\\..\\input\\easy.txt'
-SAMPLE_PATH = '..\\..\\input\\main_107farmerSurvey.txt'
-OUTPUT_PATH = '..\\..\\output\\json\\公務資料.json'
+SAMPLE_PATH = '..\\..\\input\\main_107farmerSurvey.txt' if MAIN else '..\\..\\input\\sub_107farmerSurvey.txt'
+OUTPUT_PATH = '..\\..\\output\\json\\公務資料.json' if MAIN else '..\\..\\output\\json\\公務資料_備選.json'
 THIS_YEAR = 107
 ANNOTATION_DICT = {'0': '', '1': '死亡', '2': '除戶'}
 # defined namedtuple attribute
@@ -255,43 +256,50 @@ def build_official_data(comparison_dict) -> None:
                             if age <= 55:
                                 json_hh_person[k_d['sb']] += db.get_tenant_farmer()
                             subsidy = [
-#                                     person_name,
+                                    name,
                                     db.get_tenant_transfer_subsidy(),
                                     db.get_landlord_rent(),
                                     db.get_landlord_retire()
                                 ]
                             if any((i != '0') for i in subsidy[1:]):
                                 json_sb_sbdy.append(subsidy)
+                                log.info(pid, ', sbSbdy = ', json_sb_sbdy)
                                 
                             disaster = db.get_disaster()
                             if disaster:
                                 json_disaster.extend(disaster)
+                                log.info(pid, ', disaster = ', json_disaster)
                                 
                             declaration = db.get_declaration()
                             if declaration and declaration not in json_declaration:
                                 json_declaration += declaration + ','
                                 assert len(json_declaration) != 0
+                                log.info(pid, ', declaration = ', json_declaration)
                                 
                             crop_sbdy = db.get_crop_subsidy()
                             if crop_sbdy:
                                 json_crop_sbdy.extend(crop_sbdy)
+                                log.info(pid, ', crop_sbdy = ', json_crop_sbdy)
                                 
                             livestock = db.get_livestock()
                             if livestock:
                                 json_livestock.update(livestock)
+                                log.info(pid, ', livestock = ', json_livestock)
                                 
                         # 獎學金申請人資格，申請對象至少15歲，故假設申請人30歲
                         if age >= 30:
                             json_hh_person[k_d['scholarship']] = db.get_scholarship()
+                            
                     
                     json_household.append(json_hh_person)
         else:
-            no_hh_count += 1
             DatabaseConnection.pid = farmer_id
             address = sample.addr
             json_hh_person = [''] * 11
             json_household.append(json_hh_person)
-            err_log.error(no_hh_count, ', Not in household file. ', sample)
+            if sample.id:
+                no_hh_count += 1
+                err_log.error(no_hh_count, ', Not in household file. ', sample)
             
         # create json data
         json_data['name'] = sample.name
@@ -303,7 +311,7 @@ def build_official_data(comparison_dict) -> None:
         json_data['serial'] = farmer_num[-5:]
         json_data['household'] = json_household
         json_data['monEmp'] = monthly_employee_dict.get(farmer_num, [])
-        json_data['declaration'] = json_declaration[:-2]
+        json_data['declaration'] = json_declaration[:-1]
         json_data['cropSbdy'] = json_crop_sbdy
         json_data['disaster'] = json_disaster
         json_data['livestock'] = json_livestock
@@ -325,6 +333,7 @@ start_time = time.time()
 #     load_monthly_employee()
 #     load_insurance()
 data_calssify()
-print(int((time.time()-start_time) / 60), 'min')
-log.info(int((time.time()-start_time) / 60), ' min')
+m, s = divmod(time.time()-start_time, 60)
+print(int(m), 'min', round(s, 1), 'sec')
+log.info(int(m), ' min ', round(s, 1), ' sec')
     

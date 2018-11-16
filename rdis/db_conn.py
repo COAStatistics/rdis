@@ -2,7 +2,7 @@ import linecache
 import pyodbc
 import sys
 import re
-from log import err_log
+from log import err_log, log
 
 INFO_PATH = '..\\..\\info.txt'
 class DatabaseConnection:
@@ -60,9 +60,9 @@ class DatabaseConnection:
     
     DISASTER =\
     """
-    SELECT [evt_name], [apr_crop], [apr_area], [sbdy_amt]
-    FROM [disaster].[dbo].[105acdList_farmerSurvey]
-    WHERE [pid] = convert(nvarchar(255), ?)
+    SELECT [evt_name], [approveCrop], [apr_area], [sbdy_amt]
+    FROM [disaster].[dbo].[107acdList_farmerSurvey]
+    WHERE [appID] = convert(nvarchar(255), ?)
     """
     
     DECLARATION =\
@@ -209,7 +209,7 @@ class DatabaseConnection:
             rows = self.cur.fetchall()
             if rows:
                 for i in rows:
-                    l = [i.evt_name, i.apr_crop, str(round(i.apr_area, 4)), str(int(i.sbdy_amt))]
+                    l = [i.evt_name, i.approveCrop, str(round(i.apr_area, 4)), str(int(i.sbdy_amt))]
                     try:
                         assert len(l[0]) != 0 and len(l[1]) !=0 and float(l[2]) > 0 and int(l[3]) > 0
                     except AssertionError:
@@ -265,7 +265,7 @@ class DatabaseConnection:
                 for record in rows:
                     l = list(record)
                     try:
-                        assert int(l[1]) > 0 and l[2] == '1'
+                        assert float(l[1]) > 0 and l[2] == '1'
                     except AssertionError:
                         err_log.error('AssertionError: ', self.get_crop_subsidy.__name__, ' id=', DatabaseConnection.pid, ' ', l)
                     else:
@@ -299,7 +299,8 @@ class DatabaseConnection:
                                 break
                             else:
                                 livestock[2] = '出清'
-                        livestock[3] = ''
+                        if livestock[1].strip() != '蛋雞':
+                            livestock[3] = ''
                         
                     if i.MilkCount != 0:
                         livestock[4] = '牛乳' if '牛' in livestock[1] else '羊乳'
@@ -333,7 +334,8 @@ class DatabaseConnection:
             if rows:
                 for i in rows:
                     s += i.name + '-' + str(i.scholarship) + ','
-                    
+        
+                log.info(DatabaseConnection.pid, ', scholarship = ', s)
         return s[:-1]
     
     def close_conn(self) -> None:
@@ -342,7 +344,7 @@ class DatabaseConnection:
 
 
 # db = DatabaseConnection('farmer_insurance')
-# DatabaseConnection.pid = 'P101953950'
+# DatabaseConnection.pid = 'Q121362090'
 # db.get_tenant_transfer_subsidy()
 # db.get_landlord_rent()
 # db.get_disaster()
