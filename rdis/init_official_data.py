@@ -18,6 +18,7 @@ SAMPLE_PATH = '..\\..\\input\\main_107farmerSurvey.txt' if MAIN else '..\\..\\in
 OUTPUT_PATH = '..\\..\\output\\json\\公務資料.json' if MAIN else '..\\..\\output\\json\\公務資料_備選.json'
 THIS_YEAR = 107
 ANNOTATION_DICT = {'0': '', '1': '死亡', '2': '除戶'}
+
 # defined namedtuple attribute
 SAMPLE_ATTR = [
         'layer',
@@ -33,13 +34,12 @@ SAMPLE_ATTR = [
         'area',
         'sample_num',
     ]
+
 PERSON_ATTR = [
         'addr_code',
         'id',
-#         'name',
         'birthday',
         'household_num',
-#         'h_name',
         'addr',
         'role',
         'annotation',
@@ -53,15 +53,13 @@ Person = namedtuple('Person', PERSON_ATTR)
 
 monthly_employee_dict = {}
 insurance_data = {}
+
 # every element is a Sample obj
 all_samples = []
 households = {}
 official_data = {}
 sample_count = 0
 
-def load_monthly_employee() -> None:
-    sample_list = [line.strip().split('\t') for line in open(MON_EMP_PATH, 'r', encoding='utf8')]
-    global monthly_employee_dict; monthly_employee_dict = {sample[0].strip() : sample[1:] for sample in sample_list} #Key is farmer id
 
 def load_insurance() -> None:
     wb = xlrd.open_workbook(INSURANCE_PATH)
@@ -148,11 +146,9 @@ def data_calssify() -> None:
             person = Person._make(coa_data.strip().split(','))
             pid = person.id
             hhn = person.household_num
+            
             #以戶號判斷是否存在, 存在則新增資料, 否則新增一戶
             if hhn in households:
-#                 if person_info[11] != '1' and person_info[12].strip() == '':
-                    # 避免人重複
-#                     if all((i.id.find(person.id) == -1) for i in households.get(hhn)):
                 households.get(hhn).append(person)
             else:
                 # 一戶所有的人
@@ -330,7 +326,6 @@ def output_josn(data) -> None:
 
 # if __name__ == '__main__':
 start_time = time.time()
-#     load_monthly_employee()
 #     load_insurance()
 data_calssify()
 m, s = divmod(time.time()-start_time, 60)

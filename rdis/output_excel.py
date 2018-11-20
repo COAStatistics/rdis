@@ -8,7 +8,7 @@ from log import log, err_log
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment, Border, Side
 
-MAIN = True
+MAIN = False
 # SAMPLE_PATH = '..\\..\\input\\easy.txt'
 SAMPLE_PATH = '..\\..\\input\\main_107farmerSurvey_investigator.txt' if MAIN else '..\\..\\input\\sub_107farmerSurvey_investigator.txt'
 JSON_PATH = '..\\..\\output\\json\\公務資料.json' if MAIN else '..\\..\\output\\json\\公務資料_備選.json' 
@@ -109,9 +109,9 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
             sample_data = official_data.get(farmer_num)
             if sample_data is None:
                 if farmer_num in EXCEPT_NUM:
-                    err_log.error('此戶為家庭收支的調查對象 : ', farmer_num)
+                    err_log.error('此戶為家庭收支的調查對象 : ', farmer_num, '\t', sample.inv_name.strip())
                 else:
-                    err_log.error('對象重複: ', farmer_num, '\t' ,sample.id)
+                    err_log.error('對象重複: ', farmer_num, '\t' ,sample.id, '\t', sample.inv_name.strip())
             else:
                 if type_flag == '主選' and town != sample.town:
                     town = sample.town
@@ -121,6 +121,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                     width = list(map(lambda x: x*1.054,[14.29, 9.29, 16.29, 29.29, 9.29, 11.29, 11.29, 11.29, 11.29]))
                     for i in range(1, len(width)+1):
                         sheet.column_dimensions[get_column_letter(i)].width = width[i-1]
+                    
                 set_excel_title(sheet, row_index, 'sample', SAMPLE_TITLES)
                 row_index += 1
                 info = [
@@ -312,9 +313,10 @@ def output_sample_roster(name, s, type_flag=TYPE_FLAG) -> None:
     col_index = 1
     for sample in s:
         if row_index == 4:
-            width = list(map(lambda x: x*1.13,[5.29, 5.29, 13.29, 9.29, 9.29, 10.29, 50.29, 4.29, 5.29, 20.29, 5.29]))
+            width = list(map(lambda x: x*1.13,[5.29, 5.29, 13.29, 9.29, 9.29, 10.29, 50.29, 4.29, 10.29, 20.29, 5.29]))
             for i in range(1, len(width)+1):
                 sheet.column_dimensions[get_column_letter(i)].width = width[i-1]
+                
             titles = ['107年主力農家所得調查樣本名冊─'+type_flag, '本頁已完成調查戶數：_____', '失敗戶請填寫失敗訪視紀錄表', '']
             for index, title in enumerate(titles, start=1):
                 sheet.merge_cells(start_row=index, start_column=col_index, end_row=index, end_column=11)
@@ -331,12 +333,16 @@ def output_sample_roster(name, s, type_flag=TYPE_FLAG) -> None:
             flag = True
         else:
             num = sample.num
+        main_type = sample.main_type
+        if main_type.find('(') != -1:
+            main_type = main_type[:main_type.index('(')]
         sorted_sample = ['', sample.sample_num, num, sample.num[-5:],
-                         sample.name, sample.tel, sample.addr, sample.layer, sample.main_type, sample.area, '']
+                         sample.name, sample.tel, sample.addr, sample.layer, main_type, sample.area, '']
         if row_index == 4:
             row_index += 1
             set_excel_title(sheet, row_index, 'sample_roster', SAMPLE_ROSTER_TITLES)
         row_index += 1
+        sheet.row_dimensions[row_index].height = 1.95*16.153
         for index, i in enumerate(sorted_sample, start=1):
             cell = sheet.cell(row_index, index)
             if index in [2, 4, 8]:
@@ -346,12 +352,13 @@ def output_sample_roster(name, s, type_flag=TYPE_FLAG) -> None:
             else:
                 cell.alignment = Alignment(wrap_text=True)
                 cell.value = i
+            
             cell.border = BORDER
     
     if flag:
         row_index += 1
         sheet.merge_cells(start_row=row_index, start_column=1, end_row=row_index, end_column=11)
-        sheet.cell(column=1, row=row_index).value = "備註: 星號(*)為家庭收支的調查對象,請排除"
+        sheet.cell(column=1, row=row_index).value = "備註: 星號(*)為家庭收支的調查對象,請換戶"
     excel_name = FOLDER_PATH + '\\' + inv_name + '＿主選樣本名冊.xlsx' if MAIN else FOLDER_PATH + '\\' + inv_name + '＿備選3套樣本名冊' + '.xlsx'
     wb.save(excel_name)
     
