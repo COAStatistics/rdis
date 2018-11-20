@@ -293,7 +293,7 @@ class DatabaseConnection:
                     livestock[5] = '0'
                     livestock[6] = '106' if i.InvYear == '2017' else '107'
                     
-                    if re.match('[^蛋].*[雞|鴨|鵝|鵪鶉|鴿]', livestock[1].strip()):
+                    if re.match('[^蛋].*[雞|鴨|鵝|鵪鶉|鴿]', livestock[1].strip()) or livestock[1].strip().find('蛋鴨') != -1:
                         if livestock[2] == '0':
                             if livestock[3] == '0':
                                 break
