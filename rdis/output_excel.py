@@ -16,7 +16,7 @@ JSON_PATH = '..\\..\\output\\json\\公務資料.json' if MAIN else '..\\..\\outp
 FOLDER_PATH = '..\\..\\output\\'+datetime.datetime.now().strftime('%Y%m%d_%H%M%S')+''
 
 SAMPLE_TITLES = ['農戶編號', '調查姓名', '電話', '地址', '出生年', '原層別', '連結編號']
-HOUSEHOLD_TITLES = ['[戶籍檔]', '出生年', '關係', '死亡或除戶', '農保', '老農津貼', '國民年金', '勞保給付', '勞退給付', '農保給付', '勞保費']
+HOUSEHOLD_TITLES = ['[戶籍檔]', '出生年', '關係', '死亡或除戶', '農保', '老農津貼', '國保給付', '勞保給付', '勞退給付', '農保給付']
 TRANSFER_CROP_TITLES = ['[轉作補貼]', '項目', '作物名稱', '金額', '期別']
 DISASTER_TITLES = ['[災害]', '項目', '災害', '核定作物', '核定面積', '金額']
 SB_SBDY_TITLES = ['[107小大]', '姓名', '大專業農轉契作', '小地主出租給付', '離農獎勵']

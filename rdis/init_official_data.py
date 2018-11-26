@@ -9,8 +9,8 @@ from log import log, err_log
 
 MAIN = False
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
-INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
-# INSURANCE_PATH = '..\\..\\input\\insurance.xlsx'
+# INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
+INSURANCE_PATH = '..\\..\\input\\107_insurance.xlsx'
 # COA_PATH = '..\\..\\input\\107.txt'
 COA_PATH = '..\\..\\input\\coa_d03_10711.txt'
 # SAMPLE_PATH = '..\\..\\input\\easy.txt'
@@ -68,51 +68,85 @@ def load_insurance() -> None:
     sheet = wb.sheet_by_index(0)
     distinct_dict = {}
     
+    # 國保給付
     for i in range(1, sheet.nrows):
         row = sheet.row_values(i)
         farm_id = row[0]
         id_type = farm_id + '-' + row[1]
         
-        if not id_type in distinct_dict:
-            value = int(row[2])
+        if id_type not in distinct_dict:
+            value = int(row[3])
             insurance_type = int(row[1])
             
             if insurance_type == 60 or insurance_type == 66:
                 add_insurance(farm_id, value, 0)
-            
             else:
-                distinct_dict[id_type] = value * 12
-                add_insurance(farm_id, value * 12, 0)
+                mon_start = int(row[2][-2:])
+                allance = value * (13-mon_start) 
+                distinct_dict[id_type] = allance
+                add_insurance(farm_id, allance, 0)
+        
+        else:
+            value = int(row[3])
+            insurance_type = int(row[1])
+            if insurance_type == 60 or insurance_type == 66:
+                add_insurance(farm_id, value, 0)
     
-    del distinct_dict
+    distinct_dict.clear()
     
+    # 勞保給付
     annuity = [45, 48, 35, 36, 37, 38, 55, 56, 57, 59]
     sheet = wb.sheet_by_index(1)
-    count, prev_id, prev_value = 0, '', 0
     
     for i in range(1, sheet.nrows):
         row = sheet.row_values(i)
         farm_id = row[0]
-        insurance_type = int(row[1])
-        value = int(row[2])
+        id_type = farm_id + '-' + row[1]
         
-        if prev_id == '':   prev_id = farm_id
-    
-        if insurance_type in annuity:
-            pay = value
-            count += 1
+        if id_type not in distinct_dict:
+            value = int(row[3])
+            insurance_type = int(row[1])
             
-            if not farm_id == prev_id:
-                prev_id = farm_id
-                prev_value = value
-                pay = prev_value * (13 - count)
-                count = 0
-            
-            add_insurance(farm_id, pay, 1)
-            
+            if insurance_type not in annuity:
+                add_insurance(farm_id, value, 1)
+            else:
+                mon_start = int(row[2][-2:])
+                allance = value * (13-mon_start) 
+                distinct_dict[id_type] = allance
+                add_insurance(farm_id, allance, 1)
+        
         else:
-            add_insurance(farm_id, value, 1)
+            value = int(row[3])
+            insurance_type = int(row[1])
+            if insurance_type not in annuity:
+                add_insurance(farm_id, value, 1)
+#     count, prev_id, prev_value = 0, '', 0
+#     
+#     for i in range(1, sheet.nrows):
+#         row = sheet.row_values(i)
+#         farm_id = row[0]
+#         insurance_type = int(row[1])
+#         value = int(row[2])
+#         
+#         if prev_id == '':
+#             prev_id = farm_id
+#     
+#         if insurance_type in annuity:
+#             pay = value
+#             count += 1
+#             
+#             if not farm_id == prev_id:
+#                 prev_id = farm_id
+#                 prev_value = value
+#                 pay = prev_value * (13 - count)
+#                 count = 0
+#             
+#             add_insurance(farm_id, pay, 1)
+#             
+#         else:
+#             add_insurance(farm_id, value, 1)
     
+    # 勞退
     sheet = wb.sheet_by_index(2)
     for i in range(1, sheet.nrows):
         row = sheet.row_values(i)
@@ -120,6 +154,7 @@ def load_insurance() -> None:
         value = int(row[2])
         add_insurance(farm_id, value, 2)
         
+    # 農保給付
     sheet = wb.sheet_by_index(3)
     for i in range(1, sheet.nrows):
         row = sheet.row_values(i)
@@ -331,7 +366,7 @@ def output_josn(data) -> None:
 # if __name__ == '__main__':
 start_time = time.time()
 #     load_monthly_employee()
-#     load_insurance()
+load_insurance()
 data_calssify()
 m, s = divmod(time.time()-start_time, 60)
 print(int(m), 'min', round(s, 1), 'sec')
