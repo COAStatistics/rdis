@@ -8,12 +8,13 @@ from log import log, err_log
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment, Border, Side
 
-MAIN = False
+MAIN = True
 # SAMPLE_PATH = '..\\..\\input\\easy.txt'
 SAMPLE_PATH = '..\\..\\input\\main_107farmerSurvey_investigator.txt' if MAIN else '..\\..\\input\\sub_107farmerSurvey_investigator.txt'
 JSON_PATH = '..\\..\\output\\json\\公務資料.json' if MAIN else '..\\..\\output\\json\\公務資料_備選.json' 
 # JSON_PATH = '..\\..\\output\\json\\json.json'
-FOLDER_PATH = '..\\..\\output\\'+datetime.datetime.now().strftime('%Y%m%d_%H%M%S')+''
+FOLDER_NAME = '主選特約_公務資料' if MAIN else '備選特約_公務資料'
+FOLDER_PATH = '..\\..\\output\\'+datetime.datetime.now().strftime('%Y%m%d_%H%M%S')+FOLDER_NAME
 
 EXCEPT_NUM = ['100140500520', '640200004190', '100091202591', '100140407561', '670090000233', '100091700643', '660290006014', '670320007154',
               '670260004055', '100131304635']
@@ -97,9 +98,8 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
         wb = openpyxl.Workbook()
         col_index = 1
         row_index = 1
-        town = samples[0].town
         sheet = wb.active
-        sheet.title = town if type_flag == '主選' else 'sheet'+str(row_index+1)
+        sheet.title = inv_name
         
         for sample in samples:
             scholarship = ''
@@ -113,10 +113,10 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                 else:
                     err_log.error('對象重複: ', farmer_num, '\t' ,sample.id, '\t', sample.inv_name.strip())
             else:
-                if type_flag == '主選' and town != sample.town:
-                    town = sample.town
-                    sheet = wb.create_sheet(town)
-                    row_index = 1
+#                 if type_flag == '主選' and town != sample.town:
+#                     town = sample.town
+#                     sheet = wb.create_sheet(town)
+#                     row_index = 1
                 if row_index-1 == 0:
                     width = list(map(lambda x: x*1.054,[14.29, 9.29, 16.29, 29.29, 9.29, 11.29, 11.29, 11.29, 11.29]))
                     for i in range(1, len(width)+1):
