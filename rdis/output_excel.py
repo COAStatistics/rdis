@@ -113,10 +113,6 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                 else:
                     err_log.error('對象重複: ', farmer_num, '\t' ,sample.id, '\t', sample.inv_name.strip())
             else:
-#                 if type_flag == '主選' and town != sample.town:
-#                     town = sample.town
-#                     sheet = wb.create_sheet(town)
-#                     row_index = 1
                 if row_index-1 == 0:
                     width = list(map(lambda x: x*1.054,[14.29, 9.29, 16.29, 29.29, 9.29, 11.29, 11.29, 11.29, 11.29]))
                     for i in range(1, len(width)+1):
@@ -143,6 +139,9 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                 for person in household:
                     row_index += 1
                     for index, p_data in enumerate(person, start=2):
+                        if index in [5+2, 6+2, 7+2, 8+2] and p_data:
+                            sheet.cell(column=index, row=row_index).number_format = '#,###,###'
+                            p_data = eval(p_data.replace(',', ''))
                         if index == 9+2:
                             if person[9]:
                                 scholarship += person[9] + ','
@@ -171,7 +170,6 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                             crop_d[crop_name] = amount
                         else:
                             crop_d[crop_name] = crop_d.get(crop_name) + amount
-    #                 log.info(county, ', ', town, ', ', farmer_num, ', crop_sbdy = ', crop_d)
                     
                     item_index = 0
                     set_excel_title(sheet, row_index, 'transfer_crop', TRANSFER_CROP_TITLES)
@@ -212,7 +210,6 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                             data['area'] = data.get('area') + area
                             data['amount'] = data.get('amount') + amount
                         disaster_d[disaster_name] = data
-    #                 log.info(county, ', ', town, ', ', farmer_num, ', disaster = ', disaster_d)
                         
                     row_index += 1
                     set_excel_title(sheet, row_index, 'disaster', DISASTER_TITLES)
