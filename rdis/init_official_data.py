@@ -256,9 +256,6 @@ def build_official_data(comparison_dict) -> None:
                     # 轉成實際年齡
                     age = THIS_YEAR - int(person.birthday[:3])
                     DatabaseConnection.pid = pid
-                    # 每年不一定會有 insurance 資料
-                    if farmer_id in insurance_data:
-                        json_data['insurance'] = insurance_data.get(farmer_id)
                         
                     # json 裡的 household 對應一戶裡的所有個人資料
                     json_hh_person = [''] * 11
@@ -334,6 +331,11 @@ def build_official_data(comparison_dict) -> None:
             DatabaseConnection.pid = farmer_id
             address = sample.addr
             json_hh_person = [''] * 11
+            if sample.id in insurance_data:
+                insurance = insurance_data.get(sample.id)
+                for i in range(5, 9):
+                    json_hh_person[i] = insurance[i-5]
+                    
             json_household.append(json_hh_person)
             if sample.id:
                 no_hh_count += 1
