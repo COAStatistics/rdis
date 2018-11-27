@@ -13,7 +13,8 @@ MAIN = False
 SAMPLE_PATH = '..\\..\\input\\main_107farmerSurvey.txt' if MAIN else '..\\..\\input\\sub_107farmerSurvey.txt'
 JSON_PATH = '..\\..\\output\\json\\公務資料.json' if MAIN else '..\\..\\output\\json\\公務資料_備選.json' 
 # JSON_PATH = '..\\..\\output\\json\\json.json'
-FOLDER_PATH = '..\\..\\output\\'+datetime.datetime.now().strftime('%Y%m%d_%H%M%S')+''
+FOLDER_NAME = '主選_公務資料' if MAIN else '備選_公務資料'
+FOLDER_PATH = '..\\..\\output\\'+datetime.datetime.now().strftime('%Y%m%d_%H%M%S')+ FOLDER_NAME
 
 SAMPLE_TITLES = ['農戶編號', '調查姓名', '電話', '地址', '出生年', '原層別', '連結編號']
 HOUSEHOLD_TITLES = ['[戶籍檔]', '出生年', '關係', '死亡或除戶', '農保', '老農津貼', '國保給付', '勞保給付', '勞退給付', '農保給付']
@@ -141,6 +142,9 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
             for person in household:
                 row_index += 1
                 for index, p_data in enumerate(person, start=2):
+                    if index in [5+2, 6+2, 7+2, 8+2] and p_data:
+                        sheet.cell(column=index, row=row_index).number_format = '#,###,###'
+                        p_data = eval(p_data.replace(',', ''))
                     if index == 9+2:
                         if person[9]:
                             scholarship += person[9] + ','
