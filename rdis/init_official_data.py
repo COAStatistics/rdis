@@ -69,10 +69,10 @@ def load_insurance() -> None:
     distinct_dict = {}
     
     # 國保給付
-    for i in range(1, sheet.nrows):
+    for i in range(0, sheet.nrows):
         row = sheet.row_values(i)
         farm_id = row[0]
-        id_type = farm_id + '-' + row[1]
+        id_type = farm_id + '-' + str(int(row[1]))
         
         if id_type not in distinct_dict:
             value = int(row[3])
@@ -81,7 +81,7 @@ def load_insurance() -> None:
             if insurance_type == 60 or insurance_type == 66:
                 add_insurance(farm_id, value, 0)
             else:
-                mon_start = int(row[2][-2:])
+                mon_start = int(str(int(row[2]))[-2:])
                 allance = value * (13-mon_start) 
                 distinct_dict[id_type] = allance
                 add_insurance(farm_id, allance, 0)
@@ -98,10 +98,10 @@ def load_insurance() -> None:
     annuity = [45, 48, 35, 36, 37, 38, 55, 56, 57, 59]
     sheet = wb.sheet_by_index(1)
     
-    for i in range(1, sheet.nrows):
+    for i in range(0, sheet.nrows):
         row = sheet.row_values(i)
         farm_id = row[0]
-        id_type = farm_id + '-' + row[1]
+        id_type = farm_id + '-' + str(int(row[1]))
         
         if id_type not in distinct_dict:
             value = int(row[3])
@@ -110,7 +110,7 @@ def load_insurance() -> None:
             if insurance_type not in annuity:
                 add_insurance(farm_id, value, 1)
             else:
-                mon_start = int(row[2][-2:])
+                mon_start = int(str(int(row[2]))[-2:])
                 allance = value * (13-mon_start) 
                 distinct_dict[id_type] = allance
                 add_insurance(farm_id, allance, 1)
@@ -148,20 +148,23 @@ def load_insurance() -> None:
     
     # 勞退
     sheet = wb.sheet_by_index(2)
-    for i in range(1, sheet.nrows):
+    for i in range(0, sheet.nrows):
         row = sheet.row_values(i)
         farm_id = row[0]
-        value = int(row[2])
+        value = int(row[3])
         add_insurance(farm_id, value, 2)
         
     # 農保給付
     sheet = wb.sheet_by_index(3)
-    for i in range(1, sheet.nrows):
+    for i in range(0, sheet.nrows):
         row = sheet.row_values(i)
         farm_id = row[0]
         value = int(row[2])
         add_insurance(farm_id, value, 3)
-
+        
+    for k, v in insurance_data.items():
+        log.info('insurance : ', k, ', ', v)
+        
 def add_insurance(k, v, i) -> None:
     if k in insurance_data:
         insurance_data.get(k)[i] += v
