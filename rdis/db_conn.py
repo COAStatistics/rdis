@@ -89,15 +89,15 @@ class DatabaseConnection:
     SCHOLARSHIP =\
     """
     SELECT [name],[scholarship]
-    FROM [scholarships].[dbo].[105Y_farmerSurvey]
+    FROM [scholarships].[dbo].[107Y_farmerSurvey]
     WHERE [id] = convert(nvarchar(255), ?)
     """
     
     pid = None
-#     args = 'Driver={SQL Server};Server=172.16.21.8;Database=%s;Trusted_Connection=yes;'
+    args = 'Driver={ODBC Driver 13 for SQL Server};Server=172.16.21.8;Database=%s;Trusted_Connection=yes;'
     username = linecache.getline(INFO_PATH, 1)
     pwd = linecache.getline(INFO_PATH, 2)
-    args = 'Driver={SQL Server};Server=172.16.21.8;Database=%s;UID='+ username.strip() +';PWD='+ pwd.strip() +''
+#     args = 'Driver={SQL Server};Server=172.16.21.8;Database=%s;UID='+ username.strip() +';PWD='+ pwd.strip() +''
     
     def __init__(self, db_name='fallow'):
         self.conn = pyodbc.connect(DatabaseConnection.args % db_name)
@@ -139,7 +139,7 @@ class DatabaseConnection:
     def get_tenant_farmer(self) -> str:
         try:
             self.cur.execute(DatabaseConnection.TENANT, DatabaseConnection.pid)
-            if self.cur.fetchone() != None:
+            if self.cur.fetchone() is not None:
                 return '大'
             else:
                 return ''

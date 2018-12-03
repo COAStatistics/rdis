@@ -7,7 +7,7 @@ from collections import OrderedDict
 from db_conn import DatabaseConnection
 from log import log, err_log
 
-MAIN = False
+MAIN = True
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
 # INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
 INSURANCE_PATH = '..\\..\\input\\107_insurance.xlsx'
@@ -18,6 +18,7 @@ SAMPLE_PATH = '..\\..\\input\\main_107farmerSurvey.txt' if MAIN else '..\\..\\in
 OUTPUT_PATH = '..\\..\\output\\json\\公務資料.json' if MAIN else '..\\..\\output\\json\\公務資料_備選.json'
 THIS_YEAR = 107
 ANNOTATION_DICT = {'0': '', '1': '死亡', '2': '除戶'}
+DEAD_LIST = []
 # defined namedtuple attribute
 SAMPLE_ATTR = [
         'layer',
@@ -120,31 +121,6 @@ def load_insurance() -> None:
             insurance_type = int(row[1])
             if insurance_type not in annuity:
                 add_insurance(farm_id, value, 1)
-#     count, prev_id, prev_value = 0, '', 0
-#     
-#     for i in range(1, sheet.nrows):
-#         row = sheet.row_values(i)
-#         farm_id = row[0]
-#         insurance_type = int(row[1])
-#         value = int(row[2])
-#         
-#         if prev_id == '':
-#             prev_id = farm_id
-#     
-#         if insurance_type in annuity:
-#             pay = value
-#             count += 1
-#             
-#             if not farm_id == prev_id:
-#                 prev_id = farm_id
-#                 prev_value = value
-#                 pay = prev_value * (13 - count)
-#                 count = 0
-#             
-#             add_insurance(farm_id, pay, 1)
-#             
-#         else:
-#             add_insurance(farm_id, value, 1)
     
     # 勞退
     sheet = wb.sheet_by_index(2)
@@ -182,21 +158,21 @@ def data_calssify() -> None:
     comparison_dict = {}
     with open(COA_PATH, 'r', encoding='utf8') as f:
         for coa_data in f:
+            
             # create Person object
             person = Person._make(coa_data.strip().split(','))
             pid = person.id
             hhn = person.household_num
+            
             #以戶號判斷是否存在, 存在則新增資料, 否則新增一戶
             if hhn in households:
-#                 if person_info[11] != '1' and person_info[12].strip() == '':
-                    # 避免人重複
-#                     if all((i.id.find(person.id) == -1) for i in households.get(hhn)):
                 households.get(hhn).append(person)
             else:
                 # 一戶所有的人
                 persons = []
                 persons.append(person)
                 households[hhn] = persons
+                
             #樣本身份證對應到戶籍資料就存到對照 dict
             if pid in samples_dict:
                 comparison_dict[pid] = hhn
@@ -228,7 +204,7 @@ def build_official_data(comparison_dict) -> None:
     # every element is a Sample object
     for sample in all_samples:
         count += 1
-        name, address, birthday, farmer_id, farmer_num = '', '', '', '', ''
+        address, birthday, farmer_id, farmer_num = '', '', '', ''
         # json 資料
         json_data = OrderedDict()
         json_household = []
@@ -242,17 +218,21 @@ def build_official_data(comparison_dict) -> None:
         if farmer_id in comparison_dict:
             household_num = comparison_dict.get(farmer_id)
             if household_num in households:
+                
                 # households.get(household_num) : 每戶 
                 # person : 每戶的每個人
                 # person is a Person object
                 for person in households.get(household_num):
+                    name = ''
                     pid = person.id
+                    
                     # json data 主要以 sample 的人當資料，所以要判斷戶內人是否為 sample
                     if pid == sample.id:
                         name = sample.name
                         address = sample.addr
                         # 民國年
                         birthday = str(int(person.birthday[:3]))
+                        
                     # 轉成實際年齡
                     age = THIS_YEAR - int(person.birthday[:3])
                     DatabaseConnection.pid = pid
@@ -262,12 +242,15 @@ def build_official_data(comparison_dict) -> None:
                     
                     json_hh_person[k_d['birthday']] = str(int(person.birthday[:3]))
                     json_hh_person[k_d['role']] = person.role
+                    annotation = ANNOTATION_DICT.get(person.annotation)
+                    if annotation == '死亡':
+                        DEAD_LIST.append(person.id)
+                    json_hh_person[k_d['annotation']] = annotation
                     
-                    if pid != sample.id:
-                        json_hh_person[k_d['annotation']] = ANNOTATION_DICT.get(person.annotation)
+                    
                     if pid in insurance_data:
                         for index, i in enumerate(insurance_data.get(person.id)):
-                            if i > 0:
+                            if i > 0 or i < 0:
                                 # format : 1234 -> 1,234
                                 if index == 0:
                                     json_hh_person[k_d['national_pension']] = format(i, '8,d')
@@ -323,7 +306,10 @@ def build_official_data(comparison_dict) -> None:
                                 
                         # 獎學金申請人資格，申請對象至少15歲，故假設申請人30歲
                         if age >= 30:
-                            json_hh_person[k_d['scholarship']] = db.get_scholarship()
+                            scholarship = db.get_scholarship()
+                            json_hh_person[k_d['scholarship']] = scholarship
+                            if scholarship:
+                                log.info(pid, ', scholarship = ', scholarship)
                             
                     
                     json_household.append(json_hh_person)
@@ -334,7 +320,7 @@ def build_official_data(comparison_dict) -> None:
             if sample.id in insurance_data:
                 insurance = insurance_data.get(sample.id)
                 for i in range(5, 9):
-                    json_hh_person[i] = insurance[i-5]
+                    json_hh_person[i] = format(insurance[i-5], '8,d')
                     
             json_household.append(json_hh_person)
             if sample.id:
@@ -368,12 +354,14 @@ def output_josn(data) -> None:
     print('complete', len(official_data), ' records')
     log.info(len(official_data), ' records')
 
-# if __name__ == '__main__':
 start_time = time.time()
-#     load_monthly_employee()
 load_insurance()
 data_calssify()
 m, s = divmod(time.time()-start_time, 60)
 print(int(m), 'min', round(s, 1), 'sec')
 log.info(int(m), ' min ', round(s, 1), ' sec')
+
+with open('..\\..\\output\\dead.txt', 'w') as f:
+    for i in DEAD_LIST:
+        f.write(i + '\n')
     
