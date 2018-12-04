@@ -7,7 +7,7 @@ from collections import OrderedDict
 from db_conn import DatabaseConnection
 from log import log, err_log
 
-MAIN = True
+MAIN = False
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
 # INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
 INSURANCE_PATH = '..\\..\\input\\107_insurance.xlsx'
@@ -74,7 +74,8 @@ def load_insurance() -> None:
         row = sheet.row_values(i)
         farm_id = row[0]
         id_type = farm_id + '-' + str(int(row[1]))
-        
+        month = str(int(row[2])).strip()
+    
         if id_type not in distinct_dict:
             value = int(row[3])
             insurance_type = int(row[1])
@@ -82,16 +83,26 @@ def load_insurance() -> None:
             if insurance_type == 60 or insurance_type == 66:
                 add_insurance(farm_id, value, 0)
             else:
-                mon_start = int(str(int(row[2]))[-2:])
-                allance = value * (13-mon_start) 
-                distinct_dict[id_type] = allance
-                add_insurance(farm_id, allance, 0)
+#                 mon_start = int(str(int(row[2]))[-2:])
+#                 allance = value * (13-mon_start) 
+                distinct_dict[id_type] = [month, value]
+                add_insurance(farm_id, value, 0)
         
         else:
             value = int(row[3])
             insurance_type = int(row[1])
             if insurance_type == 60 or insurance_type == 66:
                 add_insurance(farm_id, value, 0)
+            else:
+                add_insurance(farm_id, value, 0)
+                l = distinct_dict.get(id_type)
+                l[0] = month
+                l[1] = value
+                
+    for i, j in distinct_dict.items():
+        v = (12 - int(j[0][-2:])) * j[1]
+        k = i.split('-')[0]
+        add_insurance(k, v, 0)
     
     distinct_dict.clear()
     
@@ -360,7 +371,7 @@ data_calssify()
 m, s = divmod(time.time()-start_time, 60)
 print(int(m), 'min', round(s, 1), 'sec')
 log.info(int(m), ' min ', round(s, 1), ' sec')
-
+ 
 with open('..\\..\\output\\dead.txt', 'w') as f:
     for i in DEAD_LIST:
         f.write(i + '\n')
