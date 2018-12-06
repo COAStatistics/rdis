@@ -150,6 +150,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                             sb += person[10]
                             break
                         sheet.cell(column=index, row=row_index).value = p_data
+                        sheet.cell(column=index, row=row_index).alignment = Alignment(horizontal='left')
                 
                 # 輸出申報核定資料，檢查是否有資料
                 declaration = sample_data.get('declaration')
@@ -178,6 +179,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                         row_index += 1
                         item_index += 1
                         sheet.cell(column=2, row=row_index).value = item_index
+                        sheet.cell(column=2, row=row_index).alignment = Alignment(horizontal='left')
                         sheet.cell(column=3, row=row_index).value = k
                         
                         if len(k) > 8:
@@ -186,6 +188,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                         if v:
                             sheet.cell(column=4, row=row_index).number_format = '#,###,###'
                         sheet.cell(column=4, row=row_index).value = v
+                        sheet.cell(column=4, row=row_index).alignment = Alignment(horizontal='left')
                         sheet.cell(column=5, row=row_index).value = '1'
                         
                         if k not in crops:
@@ -218,6 +221,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                         row_index += 1
                         item_index += 1
                         sheet.cell(column=2, row=row_index).value = item_index
+                        sheet.cell(column=2, row=row_index).alignment = Alignment(horizontal='left')
                         l = k.split('-')
                         sheet.cell(column=3, row=row_index).value = l[0]
                         
@@ -225,10 +229,12 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                             sheet.cell(column=3, row=row_index).alignment = Alignment(wrap_text=True)
                         sheet.cell(column=4, row=row_index).value = l[1]
                         sheet.cell(column=5, row=row_index).value = v.get('area')
+                        sheet.cell(column=5, row=row_index).alignment = Alignment(horizontal='left')
                         
                         if v.get('amount'):
                             sheet.cell(column=6, row=row_index).number_format = '#,###,###'
                         sheet.cell(column=6, row=row_index).value = v.get('amount')
+                        sheet.cell(column=6, row=row_index).alignment = Alignment(horizontal='left')
                         
                         if l[1] not in crops:
                             crops.append(l[1])
@@ -244,6 +250,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                             if index >= 3:
                                 if int(eval(j)):
                                     sheet.cell(column=index, row=row_index).number_format = '#,###,###'
+                                sheet.cell(column=index, row=row_index).alignment = Alignment(horizontal='left')
                                 sheet.cell(column=index, row=row_index).value = int(eval(j))
                             else:
                                 sheet.cell(column=index, row=row_index).value = j
@@ -266,10 +273,14 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                             sheet.cell(column=4, row=row_index).value = i[1]
                             raise_count = int(eval(i[2])) if i[2].isnumeric() else i[2]
                             sheet.cell(column=5, row=row_index).value = raise_count
+                            sheet.cell(column=5, row=row_index).alignment = Alignment(horizontal='left')
                             slaughter_count = int(eval(i[3])) if i[3].isnumeric() else i[3] 
                             sheet.cell(column=6, row=row_index).value = slaughter_count
+                            sheet.cell(column=6, row=row_index).alignment = Alignment(horizontal='left')
                             sheet.cell(column=7, row=row_index).value = i[4]
+                            sheet.cell(column=7, row=row_index).alignment = Alignment(horizontal='left')
                             sheet.cell(column=8, row=row_index).value = int(eval(i[5]))
+                            sheet.cell(column=8, row=row_index).alignment = Alignment(horizontal='left')
                             if index != len(v):
                                 row_index += 1
                             
