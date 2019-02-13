@@ -94,10 +94,10 @@ class DatabaseConnection:
     """
     
     pid = None
-#     args = 'Driver={SQL Server};Server=172.16.21.8;Database=%s;Trusted_Connection=yes;'
+    args = 'Driver={ODBC Driver 13 for SQL Server};Server=172.16.21.8;Database=%s;Trusted_Connection=yes;'
     username = linecache.getline(INFO_PATH, 1)
     pwd = linecache.getline(INFO_PATH, 2)
-    args = 'Driver={SQL Server};Server=172.16.21.8;Database=%s;UID='+ username.strip() +';PWD='+ pwd.strip() +''
+#     args = 'Driver={SQL Server};Server=172.16.21.8;Database=%s;UID='+ username.strip() +';PWD='+ pwd.strip() +''
     
     def __init__(self, db_name='fallow'):
         self.conn = pyodbc.connect(DatabaseConnection.args % db_name)

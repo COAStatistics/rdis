@@ -9,13 +9,18 @@ from log import log, err_log
 
 MAIN = False
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
-INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
-# INSURANCE_PATH = '..\\..\\input\\insurance.xlsx'
+# INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
+INSURANCE_PATH = '..\\..\\input\\107_insurance.xlsx'
+
+HEALTH_INSURANCE_PATH = '..\\..\\input\\107年主力健保公務檔_all.xlsx'
+LABOR_PATH = '..\\..\\input\\勞就保應計保費檔（10701-09）.xlsx'
+NATIONAL_PENSION_PATH = '..\\..\\input\\國保實收保費檔（10701-09）.xlsx'
+
 # COA_PATH = '..\\..\\input\\107.txt'
 COA_PATH = '..\\..\\input\\coa_d03_10711.txt'
 # SAMPLE_PATH = '..\\..\\input\\easy.txt'
 SAMPLE_PATH = '..\\..\\input\\main_107farmerSurvey.txt' if MAIN else '..\\..\\input\\sub_107farmerSurvey.txt'
-OUTPUT_PATH = '..\\..\\output\\json\\公務資料.json' if MAIN else '..\\..\\output\\json\\公務資料_備選.json'
+OUTPUT_PATH = '..\\..\\output\\json\\含勞健保_json\\公務資料.json' if MAIN else '..\\..\\output\\json\\含勞健保_json\\公務資料_備選.json'
 THIS_YEAR = 107
 ANNOTATION_DICT = {'0': '', '1': '死亡', '2': '除戶'}
 
@@ -53,6 +58,7 @@ Person = namedtuple('Person', PERSON_ATTR)
 
 monthly_employee_dict = {}
 insurance_data = {}
+health_labor_insurance_dict = {}
 
 # every element is a Sample obj
 all_samples = []
@@ -66,64 +72,90 @@ def load_insurance() -> None:
     sheet = wb.sheet_by_index(0)
     distinct_dict = {}
     
-    for i in range(1, sheet.nrows):
+    # 國保給付
+    for i in range(0, sheet.nrows):
         row = sheet.row_values(i)
         farm_id = row[0]
-        id_type = farm_id + '-' + row[1]
-        
-        if not id_type in distinct_dict:
-            value = int(row[2])
+        id_type = farm_id + '-' + str(int(row[1]))
+        month = str(int(row[2])).strip()
+    
+        if id_type not in distinct_dict:
+            value = int(row[3])
             insurance_type = int(row[1])
             
             if insurance_type == 60 or insurance_type == 66:
                 add_insurance(farm_id, value, 0)
-            
             else:
-                distinct_dict[id_type] = value * 12
-                add_insurance(farm_id, value * 12, 0)
+#                 mon_start = int(str(int(row[2]))[-2:])
+#                 allance = value * (13-mon_start) 
+                distinct_dict[id_type] = [month, value]
+                add_insurance(farm_id, value, 0)
+        
+        else:
+            value = int(row[3])
+            insurance_type = int(row[1])
+            if insurance_type == 60 or insurance_type == 66:
+                add_insurance(farm_id, value, 0)
+            else:
+                add_insurance(farm_id, value, 0)
+                l = distinct_dict.get(id_type)
+                l[0] = month
+                l[1] = value
+                
+    for i, j in distinct_dict.items():
+        v = (12 - int(j[0][-2:])) * j[1]
+        k = i.split('-')[0]
+        add_insurance(k, v, 0)
     
-    del distinct_dict
+    distinct_dict.clear()
     
+    # 勞保給付
     annuity = [45, 48, 35, 36, 37, 38, 55, 56, 57, 59]
     sheet = wb.sheet_by_index(1)
-    count, prev_id, prev_value = 0, '', 0
     
-    for i in range(1, sheet.nrows):
+    for i in range(0, sheet.nrows):
         row = sheet.row_values(i)
         farm_id = row[0]
-        insurance_type = int(row[1])
-        value = int(row[2])
+        id_type = farm_id + '-' + str(int(row[1]))
         
-        if prev_id == '':   prev_id = farm_id
-    
-        if insurance_type in annuity:
-            pay = value
-            count += 1
+        if id_type not in distinct_dict:
+            value = int(row[3])
+            insurance_type = int(row[1])
             
-            if not farm_id == prev_id:
-                prev_id = farm_id
-                prev_value = value
-                pay = prev_value * (13 - count)
-                count = 0
-            
-            add_insurance(farm_id, pay, 1)
-            
+            if insurance_type not in annuity:
+                add_insurance(farm_id, value, 1)
+            else:
+                mon_start = int(str(int(row[2]))[-2:])
+                allance = value * (13-mon_start) 
+                distinct_dict[id_type] = allance
+                add_insurance(farm_id, allance, 1)
+        
         else:
-            add_insurance(farm_id, value, 1)
+            value = int(row[3])
+            insurance_type = int(row[1])
+            if insurance_type not in annuity:
+                add_insurance(farm_id, value, 1)
     
+    # 勞退
     sheet = wb.sheet_by_index(2)
-    for i in range(1, sheet.nrows):
+    for i in range(0, sheet.nrows):
         row = sheet.row_values(i)
         farm_id = row[0]
-        value = int(row[2])
+        value = int(row[3])
         add_insurance(farm_id, value, 2)
         
+    # 農保給付
     sheet = wb.sheet_by_index(3)
-    for i in range(1, sheet.nrows):
+    for i in range(0, sheet.nrows):
         row = sheet.row_values(i)
         farm_id = row[0]
         value = int(row[2])
         add_insurance(farm_id, value, 3)
+        
+    for k, v in insurance_data.items():
+        log.info('insurance : ', k, ', ', v)
+    
+    load_health_labor_insurance()
 
 def add_insurance(k, v, i) -> None:
     if k in insurance_data:
@@ -134,6 +166,49 @@ def add_insurance(k, v, i) -> None:
         value_list[i] = v
         insurance_data[k] = value_list
 
+
+def load_health_labor_insurance():
+    wb = xlrd.open_workbook(HEALTH_INSURANCE_PATH)
+    sheet = wb.sheet_by_index(0)
+    for i in range(1, sheet.nrows):
+        row = sheet.row_values(i)
+        farm_id = row[1]
+        l = [''] * 7
+        t = row[8]
+        if isinstance(t, float):
+            t = int(t)
+        datas = [int(row[2]), int(row[5]), t, row[9], int(row[12])]
+        for index, data in enumerate(datas):
+            l[index] = data  
+        health_labor_insurance_dict[farm_id] = l
+    
+    wb = xlrd.open_workbook(LABOR_PATH)
+    sheet = wb.sheet_by_index(0)
+    
+    for i in range(1, sheet.nrows):
+        row = sheet.row_values(i)
+        farm_id = row[1]
+        if farm_id in health_labor_insurance_dict:
+            health_labor_insurance_dict.get(farm_id)[5] = int(row[2]) if row[2] else 0
+        else:
+            l = [0, 0, '', '', 0, 0, 0]
+            l[5] = int(row[2]) if row[2] else 0
+            health_labor_insurance_dict[farm_id] = l
+    
+    wb = xlrd.open_workbook(NATIONAL_PENSION_PATH)
+    sheet = wb.sheet_by_index(0)
+    
+    for i in range(1, sheet.nrows):
+        row = sheet.row_values(i)
+        farm_id = row[1]
+        if farm_id in health_labor_insurance_dict:
+            health_labor_insurance_dict.get(farm_id)[6] = int(row[2]) if row[2] else 0
+        else:
+            l = [0, 0, '', '', 0, 0, 0]
+            l[6] = int(row[2]) if row[2] else 0
+            health_labor_insurance_dict[farm_id] = l
+    
+    
 def data_calssify() -> None:
     # 有效身分證之樣本
     samples_dict = load_samples()
@@ -180,7 +255,10 @@ def build_official_data(comparison_dict) -> None:
     count = 0
     db = DatabaseConnection()
     person_key = ['birthday', 'role', 'annotation', 'farmer_insurance', 'elder_allowance', 'national_pension',
-                  'labor_insurance', 'labor_pension', 'farmer_insurance_payment', 'scholarship', 'sb']
+                  'labor_insurance', 'labor_pension', 'farmer_insurance_payment', 'scholarship', 'sb',
+                  'hospital_days', 'clinic_times', 'category', 'health_insurance_annotation', 'amount',
+                  'labor_amount', 'national_amount', 'id']
+    
     #key dict: for readable
     k_d = {person_key[i]:i for i in range(len(person_key))}
     # every element is a Sample object
@@ -219,8 +297,9 @@ def build_official_data(comparison_dict) -> None:
                         json_data['insurance'] = insurance_data.get(farmer_id)
                         
                     # json 裡的 household 對應一戶裡的所有個人資料
-                    json_hh_person = [''] * 11
+                    json_hh_person = [''] * 19
                     
+                    json_hh_person[k_d['id']] = person.id
                     json_hh_person[k_d['birthday']] = str(int(person.birthday[:3]))
                     json_hh_person[k_d['role']] = person.role
                     
@@ -238,6 +317,23 @@ def build_official_data(comparison_dict) -> None:
                                     json_hh_person[k_d['labor_pension']] = format(i, '8,d')
                                 if index == 3:
                                     json_hh_person[k_d['farmer_insurance_payment']] = format(i, '8,d')
+                    
+                    if pid in health_labor_insurance_dict:
+                        for index, i in enumerate(health_labor_insurance_dict.get(person.id)):
+                            if index == 0:
+                                json_hh_person[k_d['hospital_days']] = i
+                            elif index == 1:
+                                json_hh_person[k_d['clinic_times']] = i
+                            elif index == 2:
+                                json_hh_person[k_d['category']] = i
+                            elif index == 3:
+                                json_hh_person[k_d['health_insurance_annotation']] = i
+                            elif index == 4:
+                                json_hh_person[k_d['amount']] = i
+                            elif index == 5:
+                                json_hh_person[k_d['labor_amount']] = i
+                            else :
+                                json_hh_person[k_d['national_amount']] = i
                                 
                     # 根據年齡來過濾是否訪問 db
                     # 農保至少15歲
@@ -326,7 +422,7 @@ def output_josn(data) -> None:
 
 # if __name__ == '__main__':
 start_time = time.time()
-#     load_insurance()
+load_insurance()
 data_calssify()
 m, s = divmod(time.time()-start_time, 60)
 print(int(m), 'min', round(s, 1), 'sec')

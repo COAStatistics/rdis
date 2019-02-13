@@ -8,18 +8,20 @@ from log import log, err_log
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment, Border, Side
 
-MAIN = True
+MAIN = False
 # SAMPLE_PATH = '..\\..\\input\\easy.txt'
 SAMPLE_PATH = '..\\..\\input\\main_107farmerSurvey_investigator.txt' if MAIN else '..\\..\\input\\sub_107farmerSurvey_investigator.txt'
-JSON_PATH = '..\\..\\output\\json\\公務資料.json' if MAIN else '..\\..\\output\\json\\公務資料_備選.json' 
+JSON_PATH = '..\\..\\output\\json\\含勞健保_json\\公務資料.json' if MAIN else '..\\..\\output\\json\\含勞健保_json\\公務資料_備選.json' 
 # JSON_PATH = '..\\..\\output\\json\\json.json'
-FOLDER_NAME = '主選特約_公務資料' if MAIN else '備選特約_公務資料'
+FOLDER_NAME = '主選公務資料(依調查員)' if MAIN else '備選_公務資料(依調查員3套)'
 FOLDER_PATH = '..\\..\\output\\'+datetime.datetime.now().strftime('%Y%m%d_%H%M%S')+FOLDER_NAME
 
 EXCEPT_NUM = ['100140500520', '640200004190', '100091202591', '100140407561', '670090000233', '100091700643', '660290006014', '670320007154',
               '670260004055', '100131304635']
 SAMPLE_TITLES = ['農戶編號', '調查姓名', '電話', '地址', '出生年', '原層別', '連結編號']
-HOUSEHOLD_TITLES = ['[戶籍檔]', '出生年', '關係', '死亡或除戶', '農保', '老農津貼', '國保給付', '勞保給付', '勞退給付', '農保給付']
+HOUSEHOLD_TITLES = ['[戶籍檔]', '出生年', '關係', '死亡或除戶', '農保', '老農津貼', '國保給付', '勞保給付', '勞退給付', '農保給付',
+                    '', '', '住院日數(至9月)', '門診次數(至9月)', '類目屬性', '健保被保險人註記', '健保自付金額(1-9月)',
+                    '勞保費1-9月', '國保實收保費1-9月']
 TRANSFER_CROP_TITLES = ['[轉作補貼]', '項目', '作物名稱', '金額', '期別']
 DISASTER_TITLES = ['[災害]', '項目', '災害', '核定作物', '核定面積', '金額']
 SB_SBDY_TITLES = ['[107小大]', '姓名', '大專業農轉契作', '小地主出租給付', '離農獎勵']
@@ -69,7 +71,11 @@ def set_excel_title(sheet, row_index, flag, titles) -> None:
             cell.border = BORDER
     else:
         for index, title in enumerate(titles, start=1):
-                sheet.cell(column=index, row=row_index).value = title
+            cell = sheet.cell(row_index, index)
+            if index >= 13:
+                cell.alignment = Alignment(horizontal='center', vertical='bottom', wrap_text=True)
+            cell.value = title
+            
 
 
 def read_sample() -> None:
@@ -138,7 +144,7 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
     
                 for person in household:
                     row_index += 1
-                    for index, p_data in enumerate(person, start=2):
+                    for index, p_data in enumerate(person[:-1], start=2):
                         if index in [5+2, 6+2, 7+2, 8+2] and p_data:
                             sheet.cell(column=index, row=row_index).number_format = '#,###,###'
                             p_data = eval(p_data.replace(',', ''))
@@ -149,9 +155,10 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
                         if index == 10+2 and person[10] not in sb:
                             sb += person[10]
                             break
+                                
                         sheet.cell(column=index, row=row_index).value = p_data
                         sheet.cell(column=index, row=row_index).alignment = Alignment(horizontal='left')
-                
+            
                 # 輸出申報核定資料，檢查是否有資料
                 declaration = sample_data.get('declaration')
                 if declaration:
@@ -308,67 +315,6 @@ def output_excel(type_flag=TYPE_FLAG) -> None:
         
         excel_name = FOLDER_PATH + '\\' + inv_name + '＿主選公務資料.xlsx' if MAIN else FOLDER_PATH + '\\' + inv_name + '＿備選3套公務資料' + '.xlsx'
         wb.save(excel_name)
-        output_sample_roster(inv_name, samples)
-        
-# 輸出樣本名冊 excel
-def output_sample_roster(name, s, type_flag=TYPE_FLAG) -> None:
-    flag = False
-    inv_name = name
-    wb = openpyxl.Workbook()
-    sheet = wb.active
-    sheet.title = inv_name
-    row_index = 4
-    col_index = 1
-    for sample in s:
-        if row_index == 4:
-            width = list(map(lambda x: x*1.13,[5.29, 5.29, 13.29, 9.29, 9.29, 10.29, 50.29, 4.29, 10.29, 20.29, 5.29]))
-            for i in range(1, len(width)+1):
-                sheet.column_dimensions[get_column_letter(i)].width = width[i-1]
-                
-            titles = ['107年主力農家所得調查樣本名冊─'+type_flag, '本頁已完成調查戶數：_____', '失敗戶請填寫失敗訪視紀錄表', '']
-            for index, title in enumerate(titles, start=1):
-                sheet.merge_cells(start_row=index, start_column=col_index, end_row=index, end_column=11)
-                cell = sheet.cell(index, col_index)
-                cell.value = title
-                cell.alignment = ALIGNMENT
-                if index == 3:
-                    cell.alignment = Alignment(horizontal='right')
-                if index == 4:
-                    for i in range(1, 12):
-                        sheet.cell(index, i).border = BORDER
-        if sample.num in EXCEPT_NUM:
-            num = '*'+ sample.num
-            flag = True
-        else:
-            num = sample.num
-        main_type = sample.main_type
-        if main_type.find('(') != -1:
-            main_type = main_type[:main_type.index('(')]
-        sorted_sample = ['', sample.sample_num, num, sample.num[-5:],
-                         sample.name, sample.tel, sample.addr, sample.layer, main_type, sample.area, '']
-        if row_index == 4:
-            row_index += 1
-            set_excel_title(sheet, row_index, 'sample_roster', SAMPLE_ROSTER_TITLES)
-        row_index += 1
-        sheet.row_dimensions[row_index].height = 1.95*16.153
-        for index, i in enumerate(sorted_sample, start=1):
-            cell = sheet.cell(row_index, index)
-            if index in [2, 4, 8]:
-                cell.alignment = ALIGNMENT
-            if index == 1:
-                cell.value = row_index-5
-            else:
-                cell.alignment = Alignment(wrap_text=True)
-                cell.value = i
-            
-            cell.border = BORDER
-    
-    if flag:
-        row_index += 1
-        sheet.merge_cells(start_row=row_index, start_column=1, end_row=row_index, end_column=11)
-        sheet.cell(column=1, row=row_index).value = "備註: 星號(*)為家庭收支的調查對象,請換戶"
-    excel_name = FOLDER_PATH + '\\' + inv_name + '＿主選樣本名冊.xlsx' if MAIN else FOLDER_PATH + '\\' + inv_name + '＿備選3套樣本名冊' + '.xlsx'
-    wb.save(excel_name)
     
 start_time = time.time()
 read_sample()
