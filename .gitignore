@@ -103,8 +103,9 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# celipse
+# eclipse
 .settings/
 .project
 .pydevproject
 rdis/__pycache__/
+*.log

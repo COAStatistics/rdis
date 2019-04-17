@@ -3,17 +3,22 @@ import xlrd
 import re
 import time
 from collections import namedtuple
+from collections import OrderedDict
 from db_conn import DatabaseConnection
-from log import log
+from log import log, err_log
 
+MAIN = False
 MON_EMP_PATH = '..\\..\\input\\106_MonthlyEmployee.txt'
 INSURANCE_PATH = '..\\..\\input\\simple_insurance.xlsx'
 # INSURANCE_PATH = '..\\..\\input\\insurance.xlsx'
-COA_PATH = '..\\..\\input\\107.txt'
-# COA_PATH = '..\\..\\input\\coa_d03_10611.txt'
-SAMPLE_PATH = '..\\..\\input\\easy.txt'
-OUTPUT_PATH = '..\\..\\output\\json\\公務資料.json'
+# COA_PATH = '..\\..\\input\\107.txt'
+COA_PATH = '..\\..\\input\\coa_d03_10711.txt'
+# SAMPLE_PATH = '..\\..\\input\\easy.txt'
+SAMPLE_PATH = '..\\..\\input\\main_107farmerSurvey.txt' if MAIN else '..\\..\\input\\sub_107farmerSurvey.txt'
+OUTPUT_PATH = '..\\..\\output\\json\\公務資料.json' if MAIN else '..\\..\\output\\json\\公務資料_備選.json'
 THIS_YEAR = 107
+ANNOTATION_DICT = {'0': '', '1': '死亡', '2': '除戶'}
+
 # defined namedtuple attribute
 SAMPLE_ATTR = [
         'layer',
@@ -29,32 +34,32 @@ SAMPLE_ATTR = [
         'area',
         'sample_num',
     ]
+
 PERSON_ATTR = [
         'addr_code',
         'id',
-        'name',
         'birthday',
         'household_num',
-        'h_name',
         'addr',
         'role',
+        'annotation',
         'h_type',
-        'dif',
+        'h_code',
     ]
+
 # use namedtuple promote the readable and flexibility of code
 Sample = namedtuple('Sample', SAMPLE_ATTR)
 Person = namedtuple('Person', PERSON_ATTR)
 
 monthly_employee_dict = {}
 insurance_data = {}
+
 # every element is a Sample obj
 all_samples = []
 households = {}
 official_data = {}
+sample_count = 0
 
-def load_monthly_employee() -> None:
-    sample_list = [line.strip().split('\t') for line in open(MON_EMP_PATH, 'r', encoding='utf8')]
-    global monthly_employee_dict; monthly_employee_dict = {sample[0].strip() : sample[1:] for sample in sample_list} #Key is farmer id
 
 def load_insurance() -> None:
     wb = xlrd.open_workbook(INSURANCE_PATH)
@@ -141,12 +146,10 @@ def data_calssify() -> None:
             person = Person._make(coa_data.strip().split(','))
             pid = person.id
             hhn = person.household_num
+            
             #以戶號判斷是否存在, 存在則新增資料, 否則新增一戶
             if hhn in households:
-#                 if person_info[11] != '1' and person_info[12].strip() == '':
-                    # 避免人重複
-                    if all((i.id.find(person.id) == -1) for i in households.get(hhn)):
-                        households.get(hhn).append(person)
+                households.get(hhn).append(person)
             else:
                 # 一戶所有的人
                 persons = []
@@ -158,21 +161,34 @@ def data_calssify() -> None:
     build_official_data(comparison_dict)
     
 def load_samples() -> dict:
+    no_id_count = 0
     global all_samples
     # 將 sample 檔裡所有的資料原封不動存到列表裡
     all_samples = [Sample._make(l.split('\t')) for l in open(SAMPLE_PATH, encoding='utf8')]
     samples_dict = {}
-    samples_dict = {s.id:s for s in all_samples if s.id not in samples_dict and re.match('^[A-Z][12][0-9]{8}$', s.id)}
+    for s in all_samples:
+        if s.id not in samples_dict and re.match('^[A-Z]{1}[1-2]{1}[0-9]{8}$', s.id):
+            samples_dict[s.id] = s
+        else:
+            no_id_count += 1
+            err_log.error(no_id_count, ', sample name = ', s.name, ', sample id = ', s.id)
+    global sample_count; sample_count = len(all_samples)
     return samples_dict
 
 def build_official_data(comparison_dict) -> None:
+    no_hh_count = 0
+    count = 0
     db = DatabaseConnection()
-    error_sample = []
+    person_key = ['birthday', 'role', 'annotation', 'farmer_insurance', 'elder_allowance', 'national_pension',
+                  'labor_insurance', 'labor_pension', 'farmer_insurance_payment', 'scholarship', 'sb']
+    #key dict: for readable
+    k_d = {person_key[i]:i for i in range(len(person_key))}
     # every element is a Sample object
     for sample in all_samples:
+        count += 1
         name, address, birthday, farmer_id, farmer_num = '', '', '', '', ''
         # json 資料
-        json_data = {}
+        json_data = OrderedDict()
         json_household = []
         json_sb_sbdy = []
         json_disaster = []
@@ -189,10 +205,9 @@ def build_official_data(comparison_dict) -> None:
                 # person is a Person object
                 for person in households.get(household_num):
                     pid = person.id
-                    person_name = person.name
                     # json data 主要以 sample 的人當資料，所以要判斷戶內人是否為 sample
                     if pid == sample.id:
-                        name = person.name
+                        name = sample.name
                         address = sample.addr
                         # 民國年
                         birthday = str(int(person.birthday[:3]))
@@ -202,66 +217,88 @@ def build_official_data(comparison_dict) -> None:
                     # 每年不一定會有 insurance 資料
                     if farmer_id in insurance_data:
                         json_data['insurance'] = insurance_data.get(farmer_id)
+                        
                     # json 裡的 household 對應一戶裡的所有個人資料
                     json_hh_person = [''] * 11
-                    json_hh_person[0] = person_name
-                    json_hh_person[1] = str(int(person.birthday[:3]))
-                    # role
-                    json_hh_person[2] = person.role
-                    # json_hh_person[5-8]
+                    
+                    json_hh_person[k_d['birthday']] = str(int(person.birthday[:3]))
+                    json_hh_person[k_d['role']] = person.role
+                    
+                    if pid != sample.id:
+                        json_hh_person[k_d['annotation']] = ANNOTATION_DICT.get(person.annotation)
                     if pid in insurance_data:
                         for index, i in enumerate(insurance_data.get(person.id)):
                             if i > 0:
-                                # ex 1234 -> 1,234
-                                json_hh_person[index+5] = format(i, '8,d')
+                                # format : 1234 -> 1,234
+                                if index == 0:
+                                    json_hh_person[k_d['national_pension']] = format(i, '8,d')
+                                if index == 1:
+                                    json_hh_person[k_d['labor_insurance']] = format(i, '8,d')
+                                if index == 2:
+                                    json_hh_person[k_d['labor_pension']] = format(i, '8,d')
+                                if index == 3:
+                                    json_hh_person[k_d['farmer_insurance_payment']] = format(i, '8,d')
+                                
                     # 根據年齡來過濾是否訪問 db
                     # 農保至少15歲
                     if age >= 15:
-                        json_hh_person[3] = db.get_farmer_insurance()
+                        json_hh_person[k_d['farmer_insurance']] = db.get_farmer_insurance()
                         # 老農津貼至少65歲
                         if age >= 65:
-                            json_hh_person[4] = db.get_elder_allowance()
+                            json_hh_person[k_d['elder_allowance']] = db.get_elder_allowance()
                         # 佃農18-55歲，地主至少18歲
                         if age >= 18:
-                            json_hh_person[10] = db.get_landlord()
+                            json_hh_person[k_d['sb']] = db.get_landlord()
                             if age <= 55:
-                                json_hh_person[10] += db.get_tenant_farmer()
+                                json_hh_person[k_d['sb']] += db.get_tenant_farmer()
                             subsidy = [
-                                    person_name,
+                                    name,
                                     db.get_tenant_transfer_subsidy(),
                                     db.get_landlord_rent(),
                                     db.get_landlord_retire()
                                 ]
                             if any((i != '0') for i in subsidy[1:]):
                                 json_sb_sbdy.append(subsidy)
+                                log.info(pid, ', sbSbdy = ', json_sb_sbdy)
+                                
                             disaster = db.get_disaster()
-                            if len(disaster) != 0:
-                                json_disaster += disaster
+                            if disaster:
+                                json_disaster.extend(disaster)
+                                log.info(pid, ', disaster = ', json_disaster)
+                                
                             declaration = db.get_declaration()
-                            if declaration != 0 and declaration not in json_declaration:
+                            if declaration and declaration not in json_declaration:
                                 json_declaration += declaration + ','
+                                assert len(json_declaration) != 0
+                                log.info(pid, ', declaration = ', json_declaration)
+                                
                             crop_sbdy = db.get_crop_subsidy()
-                            if len(crop_sbdy) != 0:
-                                json_crop_sbdy += crop_sbdy
+                            if crop_sbdy:
+                                json_crop_sbdy.extend(crop_sbdy)
+                                log.info(pid, ', crop_sbdy = ', json_crop_sbdy)
+                                
                             livestock = db.get_livestock()
-                            if len(livestock) != 0:
+                            if livestock:
                                 json_livestock.update(livestock)
+                                log.info(pid, ', livestock = ', json_livestock)
+                                
                         # 獎學金申請人資格，申請對象至少15歲，故假設申請人30歲
                         if age >= 30:
-                            json_hh_person[9] = db.get_scholarship()
+                            json_hh_person[k_d['scholarship']] = db.get_scholarship()
+                            
+                    
                     json_household.append(json_hh_person)
         else:
             DatabaseConnection.pid = farmer_id
-            name = sample.name
             address = sample.addr
             json_hh_person = [''] * 11
-            json_hh_person[0] = name
             json_household.append(json_hh_person)
-            error_sample.append(sample)
-            log.warning('error sample:')
-            log.warning(sample)
+            if sample.id:
+                no_hh_count += 1
+                err_log.error(no_hh_count, ', Not in household file. ', sample)
+            
         # create json data
-        json_data['name'] = name
+        json_data['name'] = sample.name
         json_data['address'] = address
         json_data['birthday'] = birthday
         json_data['farmerId'] = farmer_id
@@ -269,27 +306,29 @@ def build_official_data(comparison_dict) -> None:
         json_data['layer'] = sample.layer
         json_data['serial'] = farmer_num[-5:]
         json_data['household'] = json_household
-        json_data['monEmp'] = monthly_employee_dict.get(farmer_num)
-        json_data['declaration'] = json_declaration[:-2]
+        json_data['monEmp'] = monthly_employee_dict.get(farmer_num, [])
+        json_data['declaration'] = json_declaration[:-1]
         json_data['cropSbdy'] = json_crop_sbdy
         json_data['disaster'] = json_disaster
         json_data['livestock'] = json_livestock
         json_data['sbSbdy'] = json_sb_sbdy
-        log.info('json data:')
-        log.info(json_data)
         official_data[farmer_num] = json_data
-#     output_josn(official_data)
+        print('%.2f%%' %(count/sample_count * 100))
+    db.close_conn()
+    output_josn(official_data)
     
 
 def output_josn(data) -> None:
     with open(OUTPUT_PATH, 'w', encoding='utf8') as f:
         f.write(json.dumps(data,  ensure_ascii=False))
-    log.info('compelete')
+    print('complete', len(official_data), ' records')
+    log.info(len(official_data), ' records')
 
 # if __name__ == '__main__':
 start_time = time.time()
-load_monthly_employee()
-load_insurance()
+#     load_insurance()
 data_calssify()
-log.info('time : ' + str(round(time.time() - start_time, 2)) + ' s')
+m, s = divmod(time.time()-start_time, 60)
+print(int(m), 'min', round(s, 1), 'sec')
+log.info(int(m), ' min ', round(s, 1), ' sec')
     
